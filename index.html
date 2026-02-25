@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Untamed Roastery — Roast Calculator</title>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel for JSX transpilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase compat (UMD — works alongside Babel, no ES module conflict) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Init Firebase using compat SDK (global firebase object)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZjDQAjqZEz_jeyk1MxdHNCb4dd58UBlM",
+      authDomain: "untamed-roastery.firebaseapp.com",
+      projectId: "untamed-roastery",
+      storageBucket: "untamed-roastery.firebasestorage.app",
+      messagingSenderId: "631803917381",
+      appId: "1:631803917381:web:43e737ea015f44ce215f2c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Expose Firestore methods so React app can use them
+    window.__db = db;
+    window.Firestore = {
+      doc:       (db, col, id) => db.collection(col).doc(id),
+      getDoc:    (ref)         => ref.get(),
+      setDoc:    (ref, data)   => ref.set(data),
+      onSnapshot:(ref, cb)     => ref.onSnapshot(snap => cb({ exists: ()=>snap.exists, data: ()=>snap.data() })),
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #F0E4CC; }
+    #root { min-height: 100vh; }
+    #syncBadge {
+      position: fixed; bottom: 12px; right: 12px;
+      background: #0C0C0C; color: #F0E4CC;
+      font-size: 11px; padding: 6px 14px; border-radius: 20px;
+      font-family: Georgia, serif; z-index: 9999;
+      display: flex; align-items: center; gap: 7px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .sdot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; flex-shrink:0; }
+    .sdot.pulse { background: #d97706; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="syncBadge"><div class="sdot pulse" id="sdot"></div><span id="slabel">Connecting…</span></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+
+const C = {
+  cream:"#F0E4CC", red:"#D95035", dark:"#0C0C0C",
+  peach:"#E3A88E", tan:"#D1BA9B", mocha:"#997C6F",
+  espresso:"#47322F", white:"#FFFFFF",
+};
+
+const MACHINES = [
+  { id:"aillio-r1",    brand:"Aillio",         model:"Bullet R1 V2",  capacity:1000,  rt:{light:10,"medium-light":11,medium:12,"medium-dark":13,dark:14}, cool:5,  type:"Electric Induction", tag:"1kg"   },
+  { id:"aillio-r2",    brand:"Aillio",         model:"Bullet R2 Pro", capacity:1200,  rt:{light:9, "medium-light":10,medium:11,"medium-dark":12,dark:13}, cool:4,  type:"Electric Induction", tag:"1.2kg" },
+  { id:"kaleido-m1",   brand:"Kaleido",        model:"Sniper M1",     capacity:200,   rt:{light:6, "medium-light":7, medium:8, "medium-dark":9, dark:10}, cool:3,  type:"Electric Infrared",  tag:"200g"  },
+  { id:"kaleido-m2",   brand:"Kaleido",        model:"Sniper M2",     capacity:400,   rt:{light:6, "medium-light":7, medium:8, "medium-dark":9, dark:10}, cool:3,  type:"Electric Infrared",  tag:"400g"  },
+  { id:"kaleido-m6",   brand:"Kaleido",        model:"Sniper M6",     capacity:700,   rt:{light:6, "medium-light":8, medium:9, "medium-dark":11,dark:13}, cool:3,  type:"Electric Infrared",  tag:"700g"  },
+  { id:"kaleido-m10",  brand:"Kaleido",        model:"Sniper M10",    capacity:1200,  rt:{light:7, "medium-light":9, medium:10,"medium-dark":12,dark:14}, cool:3,  type:"Electric Infrared",  tag:"1.2kg" },
+  { id:"ikawa-home",   brand:"IKAWA",          model:"Home / Pro V3", capacity:60,    rt:{light:6, "medium-light":7, medium:8, "medium-dark":8, dark:9},  cool:2,  type:"Hot Air Electric",   tag:"60g"   },
+  { id:"ikawa-pro100", brand:"IKAWA",          model:"Pro 100",       capacity:120,   rt:{light:6, "medium-light":7, medium:8, "medium-dark":9, dark:9},  cool:2,  type:"Hot Air Electric",   tag:"120g"  },
+  { id:"probat-5",     brand:"Probat",         model:"Probatone 5",   capacity:5000,  rt:{light:12,"medium-light":14,medium:15,"medium-dark":17,dark:19}, cool:8,  type:"Gas / LPG",          tag:"5kg"   },
+  { id:"probat-12",    brand:"Probat",         model:"Probatone 12",  capacity:12000, rt:{light:12,"medium-light":14,medium:15,"medium-dark":17,dark:19}, cool:10, type:"Gas",                tag:"12kg"  },
+  { id:"giesen-w1a",   brand:"Giesen",         model:"W1A",           capacity:1000,  rt:{light:10,"medium-light":11,medium:12,"medium-dark":13,dark:15}, cool:6,  type:"Gas",                tag:"1kg"   },
+  { id:"giesen-w6a",   brand:"Giesen",         model:"W6A",           capacity:6000,  rt:{light:11,"medium-light":13,medium:14,"medium-dark":16,dark:18}, cool:9,  type:"Gas",                tag:"6kg"   },
+  { id:"diedrich-ir1", brand:"Diedrich",       model:"IR-1",          capacity:1000,  rt:{light:9, "medium-light":10,medium:11,"medium-dark":13,dark:14}, cool:5,  type:"Infrared Gas",       tag:"1kg"   },
+  { id:"diedrich-ir3", brand:"Diedrich",       model:"IR-3",          capacity:3000,  rt:{light:10,"medium-light":11,medium:12,"medium-dark":14,dark:16}, cool:7,  type:"Infrared Gas",       tag:"3kg"   },
+  { id:"sf-1",         brand:"San Franciscan", model:"SF-1",          capacity:500,   rt:{light:8, "medium-light":9, medium:10,"medium-dark":12,dark:13}, cool:5,  type:"Gas",                tag:"500g"  },
+  { id:"sf-6",         brand:"San Franciscan", model:"SF-6",          capacity:3000,  rt:{light:10,"medium-light":12,medium:13,"medium-dark":15,dark:17}, cool:8,  type:"Gas / Propane",      tag:"3kg"   },
+  { id:"mcr-1",        brand:"Mill City",      model:"MCR-1",         capacity:1000,  rt:{light:10,"medium-light":11,medium:12,"medium-dark":14,dark:15}, cool:6,  type:"Gas",                tag:"1kg"   },
+  { id:"custom",       brand:"Custom",         model:"My Machine",    capacity:null,  rt:{light:10,"medium-light":11,medium:12,"medium-dark":13,dark:14}, cool:6,  type:"Custom",             tag:"?"     },
+];
+const BRANDS = ["Aillio","Kaleido","IKAWA","Probat","Giesen","Diedrich","San Franciscan","Mill City","Custom"];
+const ROAST_LEVELS = [
+  { id:"light",        label:"Light",     loss:0.13, dot:"#f5c97a" },
+  { id:"medium-light", label:"Med–Light", loss:0.15, dot:"#e8a84a" },
+  { id:"medium",       label:"Medium",    loss:0.16, dot:"#c47b35" },
+  { id:"medium-dark",  label:"Med–Dark",  loss:0.18, dot:"#8b4a20" },
+  { id:"dark",         label:"Dark",      loss:0.20, dot:"#3d1a0a" },
+];
+const FORMATS = [
+  { id:"whole", label:"Whole Bean", icon:"🫘" },
+  { id:"drip",  label:"Drip Bags",  icon:"💧" },
+  { id:"steep", label:"Steep Packs",icon:"🧃" },
+];
+const STATUS_OPTIONS = [
+  { id:"pending",     label:"Pending",     color:"#d97706", bg:"#fef3c7" },
+  { id:"in-progress", label:"In Progress", color:"#2563eb", bg:"#dbeafe" },
+  { id:"completed",   label:"Completed",   color:"#16a34a", bg:"#dcfce7" },
+  { id:"delivered",   label:"Delivered",   color:"#7c3aed", bg:"#ede9fe" },
+];
+const LEVEL_COLORS = { light:"#f5c97a","medium-light":"#e8a84a",medium:"#c47b35","medium-dark":"#8b4a20",dark:"#3d1a0a" };
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+
+// ─── KNOWN BEAN ORIGINS (pre-loaded from Untamed's cost sheet) ───
+const DEFAULT_BEAN_CATALOG = [
+  { id:"guji-g2",       name:"Guji G2",                        supplier:"United Beans Inc.", processing:"Washed",    costPerKg:16.20 },
+  { id:"ethiopian-elto",name:"Ethiopian Elto G1",               supplier:"Showroom Coffee",   processing:"Natural",   costPerKg:19.93 },
+  { id:"kenya-ndiara",  name:"Kenya Ndiara FCS Week 15PB",      supplier:"Showroom Coffee",   processing:"Washed",    costPerKg:26.37 },
+  { id:"paraiso-92",    name:"Paraiso 92 Red Bourbon P-02",     supplier:"Cafe Marcarena",    processing:"Anaerobic", costPerKg:21.94 },
+  { id:"lekempti-g4",   name:"Lekempti G4",                     supplier:"Various",           processing:"Various",   costPerKg:13.76 },
+];
+
+// ─── HELPERS ───
+function fmtW(g){ return g>=1000?`${(g/1000).toFixed(2)}kg`:`${Math.round(g)}g`; }
+function fmtT(m){ if(!m&&m!==0)return"—"; const h=Math.floor(m/60),r=m%60; return h>0?`${h}h ${r}m`:`${r}m`; }
+function md(s){ return s.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>"); }
+function fmtDate(ts){ return new Date(ts).toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"}); }
+function fmtDateFull(ts){ return new Date(ts).toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
+function toYMD(ts){ const d=new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function calcOrder(order){
+  const level = ROAST_LEVELS.find(r=>r.id===order.roastLevel)||ROAST_LEVELS[2];
+  const loss = order.customLoss!=null ? order.customLoss/100 : level.loss;
+  const slots = order.slots||[];
+  const roastedCap = slots.reduce((s,sl)=>{
+    const m = MACHINES.find(x=>x.id===sl.id)||MACHINES[0];
+    return s + (m.capacity||0)*sl.qty*(1-loss);
+  },0);
+  const slowRT = slots.length>0 ? Math.max(...slots.map(sl=>{ const m=MACHINES.find(x=>x.id===sl.id)||MACHINES[0]; return m.rt?.[order.roastLevel]||12; })) : 12;
+  const slowCool = slots.length>0 ? Math.max(...slots.map(sl=>{ const m=MACHINES.find(x=>x.id===sl.id)||MACHINES[0]; return m.cool||6; })) : 6;
+  const rounds = roastedCap>0 ? Math.ceil(order.grams/roastedCap) : 0;
+  const totalTime = rounds*(slowRT+slowCool);
+  const greenNeeded = order.grams/(1-loss);
+  const wastage = Math.round(roastedCap*rounds - order.grams);
+  return { roastedCap, slowRT, slowCool, rounds, totalTime, greenNeeded, wastage, loss };
+}
+
+// ─── MACHINE PICKER ───
+function MachinePicker({ onSelect, onClose, existing }){
+  const [tab,setTab]=useState("Aillio");
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(12,12,12,0.55)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:C.cream,borderRadius:20,boxShadow:"0 32px 80px rgba(12,12,12,0.3)",width:640,maxHeight:"82vh",display:"flex",flexDirection:"column",overflow:"hidden",border:`2px solid ${C.tan}`}}>
+        <div style={{padding:"20px 24px 0",borderBottom:`1px solid ${C.tan}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontSize:20,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>Choose a Roaster</div>
+            <button onClick={onClose} style={{background:C.tan,border:"none",width:34,height:34,borderRadius:10,cursor:"pointer",fontSize:16,color:C.espresso}}>✕</button>
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            {BRANDS.map(b=><button key={b} onClick={()=>setTab(b)} style={{padding:"7px 14px",borderRadius:"8px 8px 0 0",border:`1px solid ${tab===b?C.red:C.tan}`,borderBottom:"none",cursor:"pointer",background:tab===b?C.red:"transparent",color:tab===b?C.cream:C.mocha,fontWeight:tab===b?700:400,fontSize:12,fontFamily:"Georgia,serif"}}>{b}</button>)}
+          </div>
+        </div>
+        <div style={{overflowY:"auto",padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {MACHINES.filter(m=>m.brand===tab).map(m=>{
+            const already=existing.includes(m.id)&&m.id!=="custom";
+            return <button key={m.id} onClick={()=>!already&&onSelect(m.id)} style={{background:already?"rgba(240,228,204,0.4)":C.white,border:`2px solid ${C.tan}`,borderRadius:12,padding:"13px 15px",cursor:already?"default":"pointer",textAlign:"left",opacity:already?0.45:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{m.model}</div>
+                <span style={{background:C.red+"20",color:C.red,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20}}>{m.tag}</span>
+              </div>
+              <div style={{fontSize:11,color:C.mocha,marginBottom:5}}>{m.type}</div>
+              {m.capacity&&<div style={{fontSize:12,color:C.espresso}}>⏱ {m.rt.medium}min · ❄ {m.cool}min cool</div>}
+            </button>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MACHINE SLOT CARD ───
+function MachineSlotCard({ slot, roastLevel, onQty, onRemove }){
+  const m=MACHINES.find(x=>x.id===slot.id)||MACHINES[0];
+  const rt=m.rt?.[roastLevel]||12;
+  return (
+    <div style={{background:"rgba(255,255,255,0.7)",border:`2px solid ${C.tan}`,borderRadius:14,padding:"15px 16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.red,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>{m.brand}</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{m.model}</div>
+          <div style={{fontSize:12,color:C.mocha,marginTop:2}}>{m.type}</div>
+        </div>
+        <button onClick={onRemove} style={{background:"#fee2e2",border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:"#dc2626",fontSize:13}}>✕</button>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        {[{l:"Max batch",v:m.capacity?fmtW(m.capacity):"—"},{l:"Roast time",v:`${rt}min`},{l:"Cool time",v:`${m.cool}min`}].map(s=>(
+          <div key={s.l} style={{background:C.cream,borderRadius:8,padding:"5px 10px",border:`1px solid ${C.tan}`}}>
+            <div style={{fontSize:10,color:C.mocha,marginBottom:2}}>{s.l}</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.espresso}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:12,color:C.mocha}}>Machines:</span>
+        <div style={{display:"flex",alignItems:"center",background:C.cream,borderRadius:10,overflow:"hidden",border:`1px solid ${C.tan}`}}>
+          <button onClick={()=>onQty(Math.max(1,slot.qty-1))} style={{width:32,height:32,border:"none",background:"transparent",cursor:"pointer",fontSize:18,color:C.espresso}}>−</button>
+          <div style={{width:34,textAlign:"center",fontSize:18,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>{slot.qty}</div>
+          <button onClick={()=>onQty(slot.qty+1)} style={{width:32,height:32,border:"none",background:"transparent",cursor:"pointer",fontSize:18,color:C.espresso}}>+</button>
+        </div>
+        {slot.qty>1&&m.capacity&&<span style={{fontSize:12,color:C.mocha}}>= {fmtW(m.capacity*slot.qty)} combined</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── ROUND ROW ───
+function RoundRow({ idx,thisRoasted,maxRoasted,roastLevel,cumTime,done,onToggle,note,onNote }){
+  const lvl=ROAST_LEVELS.find(r=>r.id===roastLevel);
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(note);
+  const pct=Math.min((thisRoasted/maxRoasted)*100,100);
+  return (
+    <div style={{borderRadius:10,border:`1.5px solid ${done?"#86efac":C.tan}`,background:done?"#f0fdf4":C.white,padding:"12px 14px",marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <button onClick={onToggle} style={{width:24,height:24,borderRadius:6,border:`2px solid ${done?"#16a34a":C.tan}`,background:done?"#16a34a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          {done&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
+        </button>
+        <div style={{fontSize:13,fontWeight:700,color:done?"#16a34a":C.espresso,minWidth:68,textDecoration:done?"line-through":"none",fontFamily:"Georgia,serif"}}>Round {idx+1}</div>
+        <div style={{flex:1,height:6,background:C.cream,borderRadius:3,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${pct}%`,background:lvl?.dot||C.red,borderRadius:3}}/>
+        </div>
+        <div style={{fontSize:12,color:C.espresso,minWidth:88,textAlign:"right",fontWeight:600}}>{fmtW(Math.round(thisRoasted))}</div>
+        <div style={{fontSize:11,color:C.mocha,minWidth:64,textAlign:"right"}}>~{fmtT(cumTime)}</div>
+        <button onClick={()=>{setEditing(v=>!v);setDraft(note);}} style={{background:note||editing?C.red+"15":"transparent",border:`1px solid ${note||editing?C.red:C.tan}`,borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:11,color:note||editing?C.red:C.mocha}}>
+          {editing?"✕":note?"📝 Note":"+ Note"}
+        </button>
+      </div>
+      {editing&&(
+        <div style={{marginTop:10,display:"flex",gap:8}}>
+          <input value={draft} onChange={e=>setDraft(e.target.value)} placeholder="e.g. Adjusted airflow…"
+            style={{flex:1,border:`1.5px solid ${C.red}`,borderRadius:8,padding:"7px 12px",fontSize:13,color:C.dark,background:C.cream,outline:"none",fontFamily:"Georgia,serif"}}
+            onKeyDown={e=>{if(e.key==="Enter"){onNote(draft);setEditing(false);}if(e.key==="Escape")setEditing(false);}}/>
+          <button onClick={()=>{onNote(draft);setEditing(false);}} style={{background:C.red,border:"none",borderRadius:8,padding:"0 16px",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"Georgia,serif"}}>Save</button>
+        </div>
+      )}
+      {note&&!editing&&<div style={{marginTop:8,fontSize:12,color:C.espresso,background:`${C.red}12`,padding:"6px 10px",borderRadius:6,borderLeft:`3px solid ${C.red}`}}>{note}</div>}
+    </div>
+  );
+}
+
+// ─── LOG ENTRY CARD ───
+function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
+  const [expanded,setExpanded]=useState(false);
+  const [editingNote,setEditingNote]=useState(false);
+  const [noteDraft,setNoteDraft]=useState(entry.orderNote||"");
+  const [confirmDelete,setConfirmDelete]=useState(false);
+  const status=STATUS_OPTIONS.find(s=>s.id===entry.status)||STATUS_OPTIONS[0];
+  return (
+    <div style={{border:`1.5px solid ${C.tan}`,borderRadius:14,overflow:"hidden",marginBottom:10,background:C.white}}>
+      <div style={{display:"flex",alignItems:"center",gap:0,padding:"13px 16px",cursor:"pointer"}} onClick={()=>setExpanded(v=>!v)}>
+        <div style={{flex:"0 0 130px"}}>
+          <div style={{fontWeight:700,color:C.dark,fontSize:13,fontFamily:"Georgia,serif"}}>{entry.client||"—"}</div>
+          <div style={{fontSize:10,color:C.mocha,marginTop:2}}>📅 {fmtDate(entry.id)}</div>
+        </div>
+        <div style={{flex:"0 0 160px",fontSize:11,color:C.mocha,paddingRight:12}}>{entry.machines}</div>
+        <div style={{flex:"0 0 100px"}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.espresso}}>{fmtW(entry.grams)}</div>
+          <div style={{fontSize:10,color:C.mocha}}>{entry.format} · {entry.level}</div>
+        </div>
+        <div style={{flex:"0 0 70px",textAlign:"center"}}>
+          <div style={{fontSize:20,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>{entry.rounds}</div>
+          <div style={{fontSize:10,color:C.mocha}}>rounds</div>
+        </div>
+        <div style={{flex:"0 0 70px",textAlign:"center"}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.espresso}}>{fmtT(entry.totalTime)}</div>
+          <div style={{fontSize:10,color:C.mocha}}>total</div>
+        </div>
+        <div style={{flex:1,display:"flex",justifyContent:"center"}} onClick={e=>e.stopPropagation()}>
+          <select value={entry.status||"pending"} onChange={e=>{e.stopPropagation();onStatusChange(e.target.value);}}
+            style={{border:`1.5px solid ${status.color}`,background:status.bg,color:status.color,borderRadius:20,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"Georgia,serif",outline:"none"}}>
+            {STATUS_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+        </div>
+        <div style={{flex:"0 0 90px",textAlign:"right"}}>
+          {entry.margin!=null
+            ? <div style={{fontSize:13,fontWeight:700,color:entry.margin>=0?"#16a34a":"#dc2626"}}>{entry.margin>=0?"+":""}${entry.margin.toFixed(2)}</div>
+            : <div style={{fontSize:10,color:C.mocha,fontStyle:"italic"}}>No cost set</div>}
+          {entry.margin!=null&&<div style={{fontSize:10,color:C.mocha}}>margin</div>}
+        </div>
+        <div style={{flex:"0 0 28px",textAlign:"right",fontSize:13,color:C.mocha}}>{expanded?"▲":"▼"}</div>
+      </div>
+      {expanded&&(
+        <div style={{borderTop:`1px solid ${C.tan}`,background:C.cream,padding:"16px 18px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+            {[
+              {l:"Green Beans Sourced",v:fmtW(entry.greenNeeded)},{l:"Roast Loss",v:`~${entry.lossPercent||16}%`},
+              {l:"Wastage",v:fmtW(entry.wastage)},{l:"Roasted At",v:fmtDateFull(entry.id)},
+              {l:"Roast Time",v:fmtT(entry.roastTime)},{l:"Cool Time",v:fmtT(entry.coolTime)},
+            ].map(s=>(
+              <div key={s.l} style={{background:C.white,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.tan}`}}>
+                <div style={{fontSize:10,color:C.mocha,marginBottom:3,letterSpacing:1,textTransform:"uppercase"}}>{s.l}</div>
+                <div style={{fontSize:14,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:C.white,borderRadius:10,padding:"14px 16px",border:`1px solid ${C.tan}`,marginBottom:12}}>
+            <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:12}}>💰 Cost & Profitability</div>
+            {/* Cost breakdown from calculator */}
+            {entry.totalCost!=null&&(
+              <div style={{background:C.espresso,borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+                <div style={{fontSize:9,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:8}}>Saved Cost Breakdown</div>
+                <div style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"flex-end"}}>
+                  <div>
+                    <div style={{fontSize:9,color:C.tan,textTransform:"uppercase",letterSpacing:1}}>Total Cost</div>
+                    <div style={{fontSize:22,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif"}}>${entry.totalCost.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:9,color:C.tan,textTransform:"uppercase",letterSpacing:1}}>Cost / kg</div>
+                    <div style={{fontSize:18,fontWeight:700,color:C.peach,fontFamily:"Georgia,serif"}}>${(entry.costPerKg||0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:9,color:C.tan,textTransform:"uppercase",letterSpacing:1}}>Cost / g</div>
+                    <div style={{fontSize:14,fontWeight:700,color:C.tan,fontFamily:"Georgia,serif"}}>${((entry.costPerKg||0)/1000).toFixed(4)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Sell price + margin */}
+            <div style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:140}}>
+                <div style={{fontSize:11,color:C.mocha,marginBottom:4}}>Sell price ($/kg)</div>
+                <input type="number" defaultValue={entry.sellPricePerKg||""} placeholder="0.00"
+                  onBlur={e=>{
+                    const updated={...entry,sellPricePerKg:parseFloat(e.target.value)||0};
+                    const sellKg=updated.grams/1000;
+                    const revenue=updated.sellPricePerKg*sellKg;
+                    const cost=updated.totalCost||((updated.greenCostPerKg||0)*(updated.greenNeeded/1000));
+                    updated.margin=revenue-cost;
+                    onNoteChange(updated);
+                  }}
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:8,padding:"7px 10px",width:"100%",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.cream,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              {entry.sellPricePerKg&&(
+                <div style={{flex:1,minWidth:140}}>
+                  <div style={{fontSize:11,color:C.mocha,marginBottom:4}}>Revenue</div>
+                  <div style={{fontSize:16,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>${((entry.sellPricePerKg||0)*(entry.grams/1000)).toFixed(2)}</div>
+                </div>
+              )}
+              {entry.margin!=null&&(
+                <div style={{flex:1,minWidth:140}}>
+                  <div style={{fontSize:11,color:C.mocha,marginBottom:4}}>Margin</div>
+                  <div style={{fontSize:22,fontWeight:900,color:entry.margin>=0?"#16a34a":"#dc2626",fontFamily:"Georgia,serif"}}>{entry.margin>=0?"+":""}${entry.margin.toFixed(2)}</div>
+                  {entry.sellPricePerKg&&entry.totalCost&&<div style={{fontSize:10,color:C.mocha,marginTop:2}}>{Math.round((entry.margin/((entry.sellPricePerKg||1)*(entry.grams/1000)))*100)}% margin</div>}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{background:C.white,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.tan}`,marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase"}}>📋 Order Notes</div>
+              {!editingNote&&<button onClick={()=>setEditingNote(true)} style={{background:"transparent",border:`1px solid ${C.tan}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:C.mocha,fontFamily:"Georgia,serif"}}>{entry.orderNote?"Edit":"+ Add note"}</button>}
+            </div>
+            {editingNote?(
+              <div style={{display:"flex",gap:8}}>
+                <textarea value={noteDraft} onChange={e=>setNoteDraft(e.target.value)} placeholder="Delivery date, invoice #, special requests…"
+                  style={{flex:1,border:`1.5px solid ${C.red}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:C.dark,background:C.cream,outline:"none",fontFamily:"Georgia,serif",resize:"vertical",minHeight:60}}/>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  <button onClick={()=>{onNoteChange({...entry,orderNote:noteDraft});setEditingNote(false);}} style={{background:C.red,border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"Georgia,serif"}}>Save</button>
+                  <button onClick={()=>setEditingNote(false)} style={{background:C.tan,border:"none",borderRadius:8,padding:"8px 14px",color:C.espresso,cursor:"pointer",fontSize:12,fontFamily:"Georgia,serif"}}>Cancel</button>
+                </div>
+              </div>
+            ):(
+              entry.orderNote
+                ? <div style={{fontSize:13,color:C.espresso,lineHeight:1.6,borderLeft:`3px solid ${C.red}`,paddingLeft:10}}>{entry.orderNote}</div>
+                : <div style={{fontSize:12,color:C.mocha,fontStyle:"italic"}}>No notes added</div>
+            )}
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}>
+            {confirmDelete
+              ? <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:12,color:"#dc2626"}}>Delete this order?</span>
+                  <button onClick={onDelete} style={{background:"#dc2626",border:"none",borderRadius:8,padding:"6px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"Georgia,serif"}}>Yes, delete</button>
+                  <button onClick={()=>setConfirmDelete(false)} style={{background:C.tan,border:"none",borderRadius:8,padding:"6px 16px",color:C.espresso,cursor:"pointer",fontSize:12,fontFamily:"Georgia,serif"}}>Cancel</button>
+                </div>
+              : <button onClick={()=>setConfirmDelete(true)} style={{background:"transparent",border:"1px solid #fca5a5",borderRadius:8,padding:"6px 16px",color:"#dc2626",cursor:"pointer",fontSize:12,fontFamily:"Georgia,serif"}}>🗑 Delete order</button>
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CALENDAR TAB ───
+function CalendarTab({ log, schedule, onScheduleChange }){
+  const today = new Date();
+  const [viewDate, setViewDate] = useState({ year:today.getFullYear(), month:today.getMonth() });
+  const [calView, setCalView] = useState("month"); // "month" | "week"
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [schedForm, setSchedForm] = useState({ client:"", grams:"", unit:"g", roastLevel:"medium", format:"drip", slots:[], scheduledDate:"" });
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Build a map of YMD -> [entries]
+  const dayMap = {};
+  [...log, ...schedule].forEach(e=>{
+    const key = toYMD(e.scheduledDate||e.id);
+    if(!dayMap[key]) dayMap[key]=[];
+    dayMap[key].push(e);
+  });
+
+  // Month view helpers
+  const { year, month } = viewDate;
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const todayYMD = toYMD(Date.now());
+
+  function prevMonth(){ setViewDate(v=>{ const d=new Date(v.year,v.month-1,1); return {year:d.getFullYear(),month:d.getMonth()}; }); setSelectedDay(null); }
+  function nextMonth(){ setViewDate(v=>{ const d=new Date(v.year,v.month+1,1); return {year:d.getFullYear(),month:d.getMonth()}; }); setSelectedDay(null); }
+
+  // Week helpers
+  function getWeekStart(d=new Date()){
+    const s=new Date(d); s.setDate(d.getDate()-d.getDay()); s.setHours(0,0,0,0); return s;
+  }
+  const [weekStart, setWeekStart] = useState(()=>getWeekStart());
+  const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(weekStart); d.setDate(d.getDate()+i); return d; });
+
+  function addSchedSlot(id){ setSchedForm(f=>({...f,slots:[...f.slots,{id,qty:1}]})); setPickerOpen(false); }
+  function removeSchedSlot(i){ setSchedForm(f=>({...f,slots:f.slots.filter((_,j)=>j!==i)})); }
+  function setSchedQty(i,q){ setSchedForm(f=>({...f,slots:f.slots.map((s,j)=>j===i?{...s,qty:Math.max(1,q)}:s)})); }
+
+  function saveScheduled(){
+    if(!schedForm.scheduledDate||!schedForm.grams||schedForm.slots.length===0) return;
+    const grams = schedForm.unit==="kg" ? parseFloat(schedForm.grams)*1000 : parseFloat(schedForm.grams);
+    const entry = {
+      id: Date.now(),
+      scheduledDate: new Date(schedForm.scheduledDate+"T08:00:00").getTime(),
+      client: schedForm.client,
+      grams,
+      roastLevel: schedForm.roastLevel,
+      format: schedForm.format,
+      slots: schedForm.slots,
+      status: "pending",
+      isScheduled: true,
+      machines: schedForm.slots.map(s=>{ const m=MACHINES.find(x=>x.id===s.id)||MACHINES[0]; return `${s.qty}× ${m.model}`; }).join(", "),
+      level: ROAST_LEVELS.find(r=>r.id===schedForm.roastLevel)?.label,
+      ...calcOrder({...schedForm,grams}),
+    };
+    onScheduleChange([...schedule, entry]);
+    setShowScheduler(false);
+    setSchedForm({client:"",grams:"",unit:"g",roastLevel:"medium",format:"drip",slots:[],scheduledDate:""});
+  }
+
+  function deleteScheduled(id){ onScheduleChange(schedule.filter(e=>e.id!==id)); }
+
+  const DayDot = ({entry})=>{
+    const isLog = !entry.isScheduled;
+    const lvlColor = LEVEL_COLORS[entry.roastLevel]||C.tan;
+    const statusC = STATUS_OPTIONS.find(s=>s.id===entry.status)||STATUS_OPTIONS[0];
+    return (
+      <div style={{fontSize:10,background:isLog?statusC.bg:`${C.red}15`,border:`1px solid ${isLog?statusC.color:C.red}`,borderRadius:6,padding:"2px 5px",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%",display:"flex",alignItems:"center",gap:3}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:lvlColor,flexShrink:0}}/>
+        <span style={{color:isLog?statusC.color:C.red,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis"}}>{entry.client||"Order"}</span>
+        {isLog&&<span style={{color:C.mocha}}>✓</span>}
+      </div>
+    );
+  };
+
+  const DayDetail = ({ymd})=>{
+    const entries = dayMap[ymd]||[];
+    if(!entries.length) return <div style={{fontSize:12,color:C.mocha,fontStyle:"italic",textAlign:"center",padding:"20px 0"}}>No roasts scheduled for this day</div>;
+    return entries.map((e,i)=>{
+      const calc = e.isScheduled ? e : calcOrder({...e,roastLevel:e.roastLevel||"medium",slots:[]});
+      const isLog = !e.isScheduled;
+      const statusC = STATUS_OPTIONS.find(s=>s.id===e.status)||STATUS_OPTIONS[0];
+      const lvlColor = LEVEL_COLORS[e.roastLevel||"medium"]||C.tan;
+      return (
+        <div key={i} style={{border:`1.5px solid ${isLog?statusC.color:C.red}`,borderRadius:12,padding:"12px 14px",marginBottom:10,background:isLog?statusC.bg+"44":`${C.red}08`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                <div style={{width:9,height:9,borderRadius:"50%",background:lvlColor}}/>
+                <span style={{fontWeight:700,fontSize:14,color:C.dark,fontFamily:"Georgia,serif"}}>{e.client||"—"}</span>
+                {isLog&&<span style={{fontSize:10,background:statusC.bg,color:statusC.color,border:`1px solid ${statusC.color}`,borderRadius:20,padding:"1px 8px",fontWeight:700}}>{statusC.label}</span>}
+                {e.isScheduled&&<span style={{fontSize:10,background:`${C.red}20`,color:C.red,border:`1px solid ${C.red}`,borderRadius:20,padding:"1px 8px",fontWeight:700}}>Scheduled</span>}
+              </div>
+              <div style={{fontSize:11,color:C.mocha}}>{e.machines}</div>
+            </div>
+            {e.isScheduled&&<button onClick={()=>deleteScheduled(e.id)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>Remove</button>}
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {[{l:"Amount",v:fmtW(e.grams)},{l:"Rounds",v:e.rounds||"—"},{l:"Total Time",v:fmtT(e.totalTime)},{l:"Green Beans",v:fmtW(e.greenNeeded||0)},{l:"Level",v:e.level||e.roastLevel},{l:"Format",v:e.format}].map(s=>(
+              <div key={s.l} style={{background:"rgba(255,255,255,0.8)",border:`1px solid ${C.tan}`,borderRadius:8,padding:"5px 10px"}}>
+                <div style={{fontSize:9,color:C.mocha,textTransform:"uppercase",letterSpacing:1}}>{s.l}</div>
+                <div style={{fontSize:12,fontWeight:700,color:C.espresso}}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const totalScheduled = schedule.length;
+  const upcomingKg = schedule.reduce((s,e)=>s+(e.grams/1000),0);
+
+  return (
+    <div style={{maxWidth:1040,margin:"0 auto",padding:"28px 24px"}}>
+      {/* Summary bar */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+        {[
+          {icon:"📅",label:"Scheduled Roasts",value:totalScheduled,color:C.red},
+          {icon:"🌱",label:"Upcoming Volume",value:`${upcomingKg.toFixed(1)}kg`,color:C.espresso},
+          {icon:"📦",label:"Logged Orders",value:log.length,color:"#16a34a"},
+        ].map(s=>(
+          <div key={s.label} style={{background:"rgba(255,255,255,0.85)",border:`1.5px solid ${C.tan}`,borderRadius:14,padding:"16px 18px",display:"flex",alignItems:"center",gap:14}}>
+            <div style={{fontSize:28}}>{s.icon}</div>
+            <div>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:3}}>{s.label}</div>
+              <div style={{fontSize:24,fontWeight:900,color:s.color,fontFamily:"Georgia,serif"}}>{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {calView==="month"?(
+            <>
+              <button onClick={prevMonth} style={{background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:9,width:36,height:36,cursor:"pointer",fontSize:16,color:C.espresso}}>←</button>
+              <div style={{fontSize:18,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif",minWidth:200,textAlign:"center"}}>{MONTHS[month]} {year}</div>
+              <button onClick={nextMonth} style={{background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:9,width:36,height:36,cursor:"pointer",fontSize:16,color:C.espresso}}>→</button>
+            </>
+          ):(
+            <>
+              <button onClick={()=>setWeekStart(d=>{const n=new Date(d);n.setDate(n.getDate()-7);return n;})} style={{background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:9,width:36,height:36,cursor:"pointer",fontSize:16,color:C.espresso}}>←</button>
+              <div style={{fontSize:15,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif",minWidth:240,textAlign:"center"}}>
+                {weekDays[0].toLocaleDateString("en-CA",{month:"short",day:"numeric"})} – {weekDays[6].toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})}
+              </div>
+              <button onClick={()=>setWeekStart(d=>{const n=new Date(d);n.setDate(n.getDate()+7);return n;})} style={{background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:9,width:36,height:36,cursor:"pointer",fontSize:16,color:C.espresso}}>→</button>
+            </>
+          )}
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {/* View toggle */}
+          <div style={{display:"flex",background:C.white,borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`}}>
+            {[{id:"month",label:"Month"},{id:"week",label:"Week"}].map(v=>(
+              <button key={v.id} onClick={()=>setCalView(v.id)} style={{padding:"8px 16px",border:"none",background:calView===v.id?C.espresso:"transparent",color:calView===v.id?C.cream:C.mocha,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:calView===v.id?700:400}}>{v.label}</button>
+            ))}
+          </div>
+          <button onClick={()=>{ setSchedForm(f=>({...f,scheduledDate:""})); setShowScheduler(true); }}
+            style={{background:C.red,border:"none",color:C.cream,borderRadius:10,padding:"9px 20px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700}}>+ Schedule Roast</button>
+        </div>
+      </div>
+
+      {/* MONTH VIEW */}
+      {calView==="month"&&(
+        <>
+          {/* Weekday headers */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+            {WEEKDAYS.map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:C.mocha,letterSpacing:1,padding:"6px 0"}}>{d}</div>)}
+          </div>
+          {/* Calendar grid */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+            {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} style={{minHeight:100,borderRadius:10,background:"rgba(255,255,255,0.2)"}}/>)}
+            {Array.from({length:daysInMonth}).map((_,i)=>{
+              const day=i+1;
+              const ymd=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              const entries=dayMap[ymd]||[];
+              const isToday=ymd===todayYMD;
+              const isSelected=ymd===selectedDay;
+              return (
+                <div key={day} onClick={()=>setSelectedDay(isSelected?null:ymd)}
+                  style={{minHeight:100,borderRadius:10,background:isSelected?`${C.red}18`:C.white,border:`2px solid ${isSelected?C.red:isToday?"#16a34a":C.tan}`,cursor:"pointer",padding:"6px 7px",transition:"all 0.15s",position:"relative"}}>
+                  <div style={{fontSize:13,fontWeight:isToday?900:600,color:isToday?"#16a34a":C.espresso,fontFamily:"Georgia,serif",marginBottom:4,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    {day}
+                    {entries.length>0&&<span style={{fontSize:10,background:C.red,color:C.cream,borderRadius:20,padding:"1px 6px",fontWeight:700}}>{entries.length}</span>}
+                  </div>
+                  <div style={{overflow:"hidden"}}>
+                    {entries.slice(0,3).map((e,idx)=><DayDot key={idx} entry={e}/>)}
+                    {entries.length>3&&<div style={{fontSize:9,color:C.mocha,fontStyle:"italic"}}>+{entries.length-3} more</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Selected day detail */}
+          {selectedDay&&(
+            <div style={{marginTop:16,background:C.cream,borderRadius:14,border:`2px solid ${C.red}`,padding:"18px 20px"}}>
+              <div style={{fontWeight:700,fontSize:15,color:C.red,fontFamily:"Georgia,serif",marginBottom:14}}>
+                {new Date(selectedDay+"T12:00:00").toLocaleDateString("en-CA",{weekday:"long",month:"long",day:"numeric"})}
+              </div>
+              <DayDetail ymd={selectedDay}/>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* WEEK VIEW */}
+      {calView==="week"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6}}>
+          {weekDays.map((d,i)=>{
+            const ymd=toYMD(d);
+            const entries=dayMap[ymd]||[];
+            const isToday=ymd===todayYMD;
+            return (
+              <div key={i} style={{borderRadius:14,border:`2px solid ${isToday?"#16a34a":C.tan}`,background:isToday?"#f0fdf4":C.white,minHeight:300,padding:"10px 8px"}}>
+                <div style={{textAlign:"center",marginBottom:8}}>
+                  <div style={{fontSize:11,color:C.mocha,fontWeight:700,letterSpacing:1}}>{WEEKDAYS[d.getDay()]}</div>
+                  <div style={{fontSize:22,fontWeight:900,color:isToday?"#16a34a":C.espresso,fontFamily:"Georgia,serif",lineHeight:1.2}}>{d.getDate()}</div>
+                  <div style={{fontSize:10,color:C.mocha}}>{MONTHS[d.getMonth()].slice(0,3)}</div>
+                </div>
+                {entries.length===0&&<div style={{fontSize:10,color:C.tan,textAlign:"center",fontStyle:"italic",marginTop:16}}>Free day</div>}
+                {entries.map((e,idx)=>{
+                  const isLog=!e.isScheduled;
+                  const statusC=STATUS_OPTIONS.find(s=>s.id===e.status)||STATUS_OPTIONS[0];
+                  const lvlColor=LEVEL_COLORS[e.roastLevel||"medium"]||C.tan;
+                  return (
+                    <div key={idx} style={{background:isLog?statusC.bg+"88":`${C.red}12`,border:`1.5px solid ${isLog?statusC.color:C.red}`,borderRadius:9,padding:"8px 9px",marginBottom:6}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
+                        <div style={{width:7,height:7,borderRadius:"50%",background:lvlColor,flexShrink:0}}/>
+                        <div style={{fontSize:12,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.client||"Order"}</div>
+                      </div>
+                      <div style={{fontSize:10,color:C.mocha,marginBottom:3}}>{fmtW(e.grams)} · {e.level||e.roastLevel}</div>
+                      <div style={{fontSize:10,color:C.mocha,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.machines}</div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        <span style={{fontSize:9,background:"rgba(255,255,255,0.7)",border:`1px solid ${C.tan}`,borderRadius:4,padding:"2px 5px",color:C.espresso}}>{e.rounds||"—"} rds</span>
+                        <span style={{fontSize:9,background:"rgba(255,255,255,0.7)",border:`1px solid ${C.tan}`,borderRadius:4,padding:"2px 5px",color:C.espresso}}>{fmtT(e.totalTime)}</span>
+                        {isLog&&<span style={{fontSize:9,background:statusC.bg,border:`1px solid ${statusC.color}`,borderRadius:4,padding:"2px 5px",color:statusC.color,fontWeight:700}}>{statusC.label}</span>}
+                        {e.isScheduled&&<span style={{fontSize:9,background:`${C.red}15`,border:`1px solid ${C.red}`,borderRadius:4,padding:"2px 5px",color:C.red,fontWeight:700}}>Sched.</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* LEGEND */}
+      <div style={{display:"flex",gap:16,marginTop:18,flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{fontSize:11,color:C.mocha,letterSpacing:1}}>LEGEND</span>
+        <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:10,height:10,borderRadius:3,background:`${C.red}15`,border:`1.5px solid ${C.red}`}}/><span style={{fontSize:11,color:C.mocha}}>Scheduled</span></div>
+        {STATUS_OPTIONS.map(s=><div key={s.id} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:10,height:10,borderRadius:3,background:s.bg,border:`1.5px solid ${s.color}`}}/><span style={{fontSize:11,color:C.mocha}}>{s.label}</span></div>)}
+        <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:10,height:10,borderRadius:"50%",background:"#16a34a"}}/><span style={{fontSize:11,color:C.mocha}}>Today</span></div>
+      </div>
+
+      {/* SCHEDULE MODAL */}
+      {showScheduler&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(12,12,12,0.55)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}} onClick={e=>e.target===e.currentTarget&&setShowScheduler(false)}>
+          {pickerOpen&&<MachinePicker onSelect={addSchedSlot} onClose={()=>setPickerOpen(false)} existing={schedForm.slots.map(s=>s.id)}/>}
+          <div style={{background:C.cream,borderRadius:20,border:`2px solid ${C.tan}`,width:580,maxHeight:"88vh",overflowY:"auto",padding:"28px 28px 24px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+              <div style={{fontSize:20,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>Schedule a Roast</div>
+              <button onClick={()=>setShowScheduler(false)} style={{background:C.tan,border:"none",width:34,height:34,borderRadius:10,cursor:"pointer",fontSize:16,color:C.espresso}}>✕</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>Client / Order</div>
+                <input value={schedForm.client} onChange={e=>setSchedForm(f=>({...f,client:e.target.value}))} placeholder="e.g. KNDZ, Retail batch…"
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>Roast Date</div>
+                <input type="date" value={schedForm.scheduledDate} onChange={e=>setSchedForm(f=>({...f,scheduledDate:e.target.value}))}
+                  style={{border:`1.5px solid ${schedForm.scheduledDate?C.red:C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>Amount Needed</div>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="number" value={schedForm.grams} onChange={e=>setSchedForm(f=>({...f,grams:e.target.value}))} placeholder="e.g. 5000"
+                    style={{flex:1,border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 12px",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none"}}/>
+                  <div style={{display:"flex",background:C.white,borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`}}>
+                    {["g","kg"].map(u=><button key={u} onClick={()=>setSchedForm(f=>({...f,unit:u}))} style={{padding:"0 12px",background:schedForm.unit===u?C.red:"transparent",color:schedForm.unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:schedForm.unit===u?700:400}}>{u}</button>)}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>Roast Level</div>
+                <div style={{display:"flex",gap:4}}>
+                  {ROAST_LEVELS.map(l=>(
+                    <button key={l.id} onClick={()=>setSchedForm(f=>({...f,roastLevel:l.id}))} style={{flex:1,padding:"8px 2px",border:`2px solid ${schedForm.roastLevel===l.id?C.red:C.tan}`,background:schedForm.roastLevel===l.id?`${C.red}18`:"rgba(255,255,255,0.7)",borderRadius:8,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:10,textAlign:"center"}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:l.dot,margin:"0 auto 3px"}}/>
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Format */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>Output Format</div>
+              <div style={{display:"flex",gap:8}}>
+                {FORMATS.map(f=><button key={f.id} onClick={()=>setSchedForm(sf=>({...sf,format:f.id}))} style={{flex:1,padding:"9px 6px",border:`2px solid ${schedForm.format===f.id?C.red:C.tan}`,background:schedForm.format===f.id?C.red:"rgba(255,255,255,0.7)",color:schedForm.format===f.id?C.cream:C.mocha,borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:schedForm.format===f.id?700:400,textAlign:"center"}}>{f.icon} {f.label}</button>)}
+              </div>
+            </div>
+            {/* Machines */}
+            <div style={{marginBottom:18}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase"}}>Machines</div>
+                <button onClick={()=>setPickerOpen(true)} style={{background:C.red,border:"none",color:C.cream,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>+ Add</button>
+              </div>
+              {schedForm.slots.length===0
+                ? <div style={{border:`2px dashed ${C.tan}`,borderRadius:10,padding:"18px",textAlign:"center",color:C.mocha,fontSize:12,fontStyle:"italic"}}>Add at least one machine</div>
+                : schedForm.slots.map((sl,i)=>{
+                    const m=MACHINES.find(x=>x.id===sl.id)||MACHINES[0];
+                    return <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",marginBottom:6}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{m.model}</div>
+                        <div style={{fontSize:11,color:C.mocha}}>{m.capacity?fmtW(m.capacity):"—"} · {m.type}</div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",background:C.cream,borderRadius:8,overflow:"hidden",border:`1px solid ${C.tan}`}}>
+                        <button onClick={()=>setSchedQty(i,sl.qty-1)} style={{width:28,height:28,border:"none",background:"transparent",cursor:"pointer",fontSize:16,color:C.espresso}}>−</button>
+                        <div style={{width:28,textAlign:"center",fontSize:15,fontWeight:700,color:C.red}}>{sl.qty}</div>
+                        <button onClick={()=>setSchedQty(i,sl.qty+1)} style={{width:28,height:28,border:"none",background:"transparent",cursor:"pointer",fontSize:16,color:C.espresso}}>+</button>
+                      </div>
+                      <button onClick={()=>removeSchedSlot(i)} style={{background:"#fee2e2",border:"none",width:26,height:26,borderRadius:7,cursor:"pointer",color:"#dc2626",fontSize:12}}>✕</button>
+                    </div>;
+                  })
+              }
+            </div>
+            {/* Preview */}
+            {schedForm.grams&&schedForm.slots.length>0&&(()=>{
+              const grams=schedForm.unit==="kg"?parseFloat(schedForm.grams)*1000:parseFloat(schedForm.grams);
+              const calc=calcOrder({...schedForm,grams});
+              return (
+                <div style={{background:`${C.espresso}12`,border:`1.5px solid ${C.tan}`,borderRadius:12,padding:"12px 14px",marginBottom:18}}>
+                  <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:8}}>Preview</div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                    {[{l:"Rounds",v:calc.rounds},{l:"Total Time",v:fmtT(calc.totalTime)},{l:"Green Beans",v:fmtW(Math.ceil(calc.greenNeeded))},{l:"Wastage",v:fmtW(calc.wastage)}].map(s=>(
+                      <div key={s.l} style={{background:C.cream,borderRadius:8,padding:"6px 10px",border:`1px solid ${C.tan}`}}>
+                        <div style={{fontSize:9,color:C.mocha,textTransform:"uppercase",letterSpacing:1}}>{s.l}</div>
+                        <div style={{fontSize:14,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+            <button onClick={saveScheduled} style={{width:"100%",padding:"14px",background:(!schedForm.scheduledDate||!schedForm.grams||schedForm.slots.length===0)?C.tan:C.red,color:C.cream,border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,cursor:(!schedForm.scheduledDate||!schedForm.grams||schedForm.slots.length===0)?"not-allowed":"pointer"}}>
+              Add to Calendar →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── PACKAGING SET ROW (controlled inputs to avoid onBlur issues) ───
+function PkgSetRow({ pkg, setPackagingInv }){
+  const [stockDraft, setStockDraft] = useState("");
+  const [alertDraft, setAlertDraft] = useState(String(pkg.lowAlert));
+
+  function commitStock(){
+    const val = parseInt(stockDraft);
+    if(!isNaN(val) && stockDraft!==""){
+      setPackagingInv(p=>p.map(pk=>pk.id===pkg.id?{...pk,stock:Math.max(0,val)}:pk));
+      setStockDraft("");
+    }
+  }
+  function commitAlert(){
+    const val = parseInt(alertDraft);
+    if(!isNaN(val)){
+      setPackagingInv(p=>p.map(pk=>pk.id===pkg.id?{...pk,lowAlert:Math.max(0,val)}:pk));
+    }
+  }
+
+  return (
+    <div style={{display:"flex",gap:6,alignItems:"center",marginTop:2}}>
+      <span style={{fontSize:10,color:"#997C6F",whiteSpace:"nowrap"}}>Set stock:</span>
+      <input
+        type="number" min="0" value={stockDraft} placeholder={String(pkg.stock)}
+        onChange={e=>setStockDraft(e.target.value)}
+        onKeyDown={e=>{ if(e.key==="Enter") commitStock(); }}
+        onBlur={commitStock}
+        style={{flex:1,border:"1.5px solid #D1BA9B",borderRadius:7,padding:"5px 8px",fontFamily:"Georgia,serif",fontSize:12,color:"#0C0C0C",background:"#F0E4CC",outline:"none"}}/>
+      <button onClick={commitStock}
+        style={{background:"#D95035",border:"none",borderRadius:7,padding:"5px 10px",cursor:"pointer",fontSize:11,color:"#F0E4CC",fontFamily:"Georgia,serif",fontWeight:700,whiteSpace:"nowrap"}}>
+        Set
+      </button>
+      <span style={{fontSize:10,color:"#997C6F",whiteSpace:"nowrap"}}>alert:</span>
+      <input
+        type="number" min="0" value={alertDraft}
+        onChange={e=>setAlertDraft(e.target.value)}
+        onKeyDown={e=>{ if(e.key==="Enter") commitAlert(); }}
+        onBlur={commitAlert}
+        style={{width:54,border:"1.5px solid #D1BA9B",borderRadius:7,padding:"5px 8px",fontFamily:"Georgia,serif",fontSize:12,color:"#0C0C0C",background:"#F0E4CC",outline:"none"}}/>
+    </div>
+  );
+}
+
+// ─── INVENTORY TAB ───
+function InventoryTab({ inventory, setInventory, log, beanCatalog, setBeanCatalog, packagingInv, setPackagingInv }){
+  const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({origin:"",supplier:"",processing:"",stockG:"",unit:"kg",costPerKg:"",lowAlertKg:"",notes:""});
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmDeleteBean, setConfirmDeleteBean] = useState(null);
+  const [beanSearch, setBeanSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isCustomBean, setIsCustomBean] = useState(false);
+  const [manageCatalog, setManageCatalog] = useState(false);
+
+  // All known origins (catalog + already in inventory)
+  const allOrigins = beanCatalog;
+  const filtered = allOrigins.filter(b =>
+    !beanSearch || b.name.toLowerCase().includes(beanSearch.toLowerCase()) ||
+    (b.supplier||"").toLowerCase().includes(beanSearch.toLowerCase())
+  );
+
+  function selectBean(bean){
+    setForm(f=>({...f, origin:bean.name, supplier:bean.supplier||"", processing:bean.processing||"", costPerKg:bean.costPerKg||""}));
+    setBeanSearch(bean.name);
+    setShowDropdown(false);
+    setIsCustomBean(false);
+  }
+
+  function openAdd(){
+    setForm({origin:"",supplier:"",processing:"",stockG:"",unit:"kg",costPerKg:"",lowAlertKg:"",notes:""});
+    setBeanSearch(""); setEditId(null); setIsCustomBean(false); setShowAdd(true);
+  }
+
+  function openEdit(item){
+    setForm({origin:item.origin,supplier:item.supplier||"",processing:item.processing||"",stockG:item.unit==="kg"?(item.stockG/1000):item.stockG,unit:item.unit||"kg",costPerKg:item.costPerKg||"",lowAlertKg:item.lowAlertKg||"",notes:item.notes||""});
+    setBeanSearch(item.origin); setEditId(item.id); setIsCustomBean(false); setShowAdd(true);
+  }
+
+  function saveItem(){
+    if(!form.origin||!form.stockG) return;
+    const stockG = form.unit==="kg" ? parseFloat(form.stockG)*1000 : parseFloat(form.stockG);
+    const item = { id:editId||Date.now(), origin:form.origin, supplier:form.supplier, processing:form.processing, stockG, unit:form.unit, costPerKg:parseFloat(form.costPerKg)||0, lowAlertKg:parseFloat(form.lowAlertKg)||0, notes:form.notes };
+    if(editId) setInventory(p=>p.map(x=>x.id===editId?item:x));
+    else setInventory(p=>[...p,item]);
+    // If it's a new custom bean not in catalog, save to catalog
+    const inCatalog = beanCatalog.some(b=>b.name.toLowerCase()===form.origin.toLowerCase());
+    if(!inCatalog && form.origin){
+      const newBean = { id:`custom-${Date.now()}`, name:form.origin, supplier:form.supplier, processing:form.processing, costPerKg:parseFloat(form.costPerKg)||0 };
+      setBeanCatalog(p=>[...p, newBean]);
+    }
+    setShowAdd(false); setEditId(null);
+  }
+
+  function adjustStock(id, deltaG){
+    setInventory(p=>p.map(x=>x.id===id?{...x,stockG:Math.max(0,x.stockG+deltaG)}:x));
+  }
+
+  function deleteBeanFromCatalog(beanId){
+    setBeanCatalog(p=>p.filter(b=>b.id!==beanId));
+    setConfirmDeleteBean(null);
+  }
+
+  const totalStockKg = inventory.reduce((s,x)=>s+(x.stockG/1000),0);
+  const totalValue   = inventory.reduce((s,x)=>s+(x.stockG/1000)*(x.costPerKg||0),0);
+  const lowItems     = inventory.filter(x=>x.lowAlertKg>0&&x.stockG/1000<=x.lowAlertKg);
+
+  return (
+    <div style={{maxWidth:860,margin:"0 auto",padding:"28px 24px"}}>
+      {/* Packaging Inventory */}
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase",marginBottom:12}}>Packaging Stock</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:10}}>
+          {packagingInv.map(pkg=>{
+            const isLow=pkg.lowAlert>0&&pkg.stock<=pkg.lowAlert;
+            return (
+              <div key={pkg.id} style={{background:isLow?"#fff3cd":C.white,border:`2px solid ${isLow?"#fbbf24":C.tan}`,borderRadius:12,padding:"14px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontSize:15,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{pkg.icon} {pkg.name}</div>
+                  {isLow&&<span style={{fontSize:9,background:"#fef3c7",color:"#d97706",border:"1px solid #fbbf24",borderRadius:20,padding:"1px 7px",fontWeight:700}}>⚠ Low</span>}
+                </div>
+                <div style={{fontSize:26,fontWeight:900,color:isLow?"#d97706":C.espresso,fontFamily:"Georgia,serif",marginBottom:8}}>{pkg.stock.toLocaleString()}</div>
+                <div style={{fontSize:10,color:C.mocha,marginBottom:10}}>{pkg.unit} · alert at {pkg.lowAlert.toLocaleString()}</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                  {[-500,-100,100,500,1000,5000].map(d=>(
+                    <button key={d} onClick={()=>setPackagingInv(p=>p.map(pk=>pk.id===pkg.id?{...pk,stock:Math.max(0,pk.stock+d)}:pk))}
+                      style={{background:d<0?"#fee2e2":`${C.red}15`,border:`1px solid ${d<0?"#fca5a5":C.tan}`,borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,color:d<0?"#dc2626":C.espresso,fontFamily:"Georgia,serif"}}>
+                      {d>0?"+":""}{d.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+                <PkgSetRow pkg={pkg} setPackagingInv={setPackagingInv}/>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Bean Summary */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+        {[
+          {icon:"🌱",label:"Origins Tracked",value:inventory.length,color:C.red},
+          {icon:"⚖️",label:"Total Stock",    value:`${totalStockKg.toFixed(2)}kg`,color:C.espresso},
+          {icon:"💰",label:"Stock Value",    value:totalValue>0?`$${totalValue.toFixed(0)}`:"—",color:"#16a34a"},
+        ].map(s=>(
+          <div key={s.label} style={{background:"rgba(255,255,255,0.85)",border:`1.5px solid ${C.tan}`,borderRadius:14,padding:"16px 18px",display:"flex",alignItems:"center",gap:14}}>
+            <div style={{fontSize:28}}>{s.icon}</div>
+            <div>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:3}}>{s.label}</div>
+              <div style={{fontSize:24,fontWeight:900,color:s.color,fontFamily:"Georgia,serif"}}>{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Low stock banner */}
+      {lowItems.length>0&&(
+        <div style={{background:"#fef3c7",border:"1.5px solid #d97706",borderRadius:12,padding:"12px 16px",marginBottom:18,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>⚠️</span>
+          <div>
+            <div style={{fontWeight:700,color:"#92400e",fontSize:13,fontFamily:"Georgia,serif"}}>Low stock alert</div>
+            <div style={{fontSize:12,color:"#92400e"}}>{lowItems.map(x=>`${x.origin} (${(x.stockG/1000).toFixed(2)}kg left)`).join(" · ")}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,gap:10,flexWrap:"wrap"}}>
+        <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase"}}>Bean Origins</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setManageCatalog(v=>!v)} style={{background:manageCatalog?C.espresso:C.white,border:`1.5px solid ${C.tan}`,color:manageCatalog?C.cream:C.mocha,borderRadius:10,padding:"9px 16px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:600}}>
+            {manageCatalog?"✕ Close Bean List":"🫘 Manage Bean List"}
+          </button>
+          <button onClick={openAdd} style={{background:C.red,border:"none",color:C.cream,borderRadius:10,padding:"9px 20px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700}}>+ Add Origin</button>
+        </div>
+      </div>
+
+      {/* Bean Catalog Manager */}
+      {manageCatalog&&(
+        <div style={{background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:14,padding:"16px 18px",marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif",marginBottom:12}}>Bean catalog — {beanCatalog.length} origins saved</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:260,overflowY:"auto"}}>
+            {beanCatalog.map(bean=>(
+              <div key={bean.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:C.cream,borderRadius:9,border:`1px solid ${C.tan}`}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{bean.name}</div>
+                  <div style={{fontSize:11,color:C.mocha}}>{[bean.supplier,bean.processing].filter(Boolean).join(" · ")}{bean.costPerKg?` · $${bean.costPerKg}/kg`:""}</div>
+                </div>
+                {confirmDeleteBean===bean.id?(
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <span style={{fontSize:11,color:"#dc2626"}}>Remove from list?</span>
+                    <button onClick={()=>deleteBeanFromCatalog(bean.id)} style={{background:"#dc2626",border:"none",borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:11,color:"#fff",fontFamily:"Georgia,serif"}}>Yes</button>
+                    <button onClick={()=>setConfirmDeleteBean(null)} style={{background:C.tan,border:"none",borderRadius:7,padding:"4px 10px",cursor:"pointer",fontSize:11,color:C.espresso,fontFamily:"Georgia,serif"}}>No</button>
+                  </div>
+                ):(
+                  <button onClick={()=>setConfirmDeleteBean(bean.id)} style={{background:"#fee2e2",border:"none",borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>🗑 Remove</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inventory list */}
+      {inventory.length===0?(
+        <div style={{border:`2px dashed ${C.tan}`,borderRadius:14,padding:"48px 24px",textAlign:"center",color:C.mocha,background:"rgba(255,255,255,0.4)"}}>
+          <div style={{fontSize:44,marginBottom:12}}>🌱</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif",marginBottom:6}}>No beans in inventory yet</div>
+          <div style={{fontSize:12,fontStyle:"italic"}}>Add your first origin to start tracking stock</div>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {inventory.map(item=>{
+            const kg=item.stockG/1000;
+            const isLow=item.lowAlertKg>0&&kg<=item.lowAlertKg;
+            const pct=item.lowAlertKg>0?Math.min((kg/Math.max(item.lowAlertKg*3,kg))*100,100):Math.min((kg/10)*100,100);
+            const barColor=isLow?"#d97706":"#16a34a";
+            return (
+              <div key={item.id} style={{background:C.white,border:`2px solid ${isLow?"#fbbf24":C.tan}`,borderRadius:14,padding:"16px 18px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                      <div style={{fontSize:16,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{item.origin}</div>
+                      {isLow&&<span style={{fontSize:10,background:"#fef3c7",color:"#d97706",border:"1px solid #fbbf24",borderRadius:20,padding:"1px 8px",fontWeight:700}}>⚠ Low Stock</span>}
+                    </div>
+                    <div style={{fontSize:11,color:C.mocha}}>{[item.supplier,item.processing].filter(Boolean).join(" · ")}{item.notes&&item.notes!==[item.supplier,item.processing].filter(Boolean).join(" · ")?"":""}</div>
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    <button onClick={()=>openEdit(item)} style={{background:C.cream,border:`1px solid ${C.tan}`,borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11,color:C.espresso,fontFamily:"Georgia,serif"}}>Edit</button>
+                    {confirmDelete===item.id?(
+                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                        <button onClick={()=>{setInventory(p=>p.filter(x=>x.id!==item.id));setConfirmDelete(null);}} style={{background:"#dc2626",border:"none",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11,color:"#fff",fontFamily:"Georgia,serif"}}>Confirm</button>
+                        <button onClick={()=>setConfirmDelete(null)} style={{background:C.tan,border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:11,color:C.espresso,fontFamily:"Georgia,serif"}}>Cancel</button>
+                      </div>
+                    ):(
+                      <button onClick={()=>setConfirmDelete(item.id)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>Remove</button>
+                    )}
+                  </div>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+                    <span style={{fontSize:22,fontWeight:900,color:isLow?"#d97706":C.espresso,fontFamily:"Georgia,serif"}}>{kg.toFixed(2)}<span style={{fontSize:12,fontWeight:400,color:C.mocha}}> kg</span></span>
+                    <span style={{fontSize:11,color:C.mocha}}>{item.costPerKg>0?`$${item.costPerKg}/kg · stock value: $${(kg*item.costPerKg).toFixed(0)}`:"No cost set"}</span>
+                  </div>
+                  <div style={{height:8,background:C.cream,borderRadius:4,overflow:"hidden",border:`1px solid ${C.tan}`}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:4,transition:"width 0.5s"}}/>
+                  </div>
+                  {item.lowAlertKg>0&&<div style={{fontSize:10,color:C.mocha,marginTop:3}}>Alert threshold: {item.lowAlertKg}kg</div>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:11,color:C.mocha}}>Quick adjust:</span>
+                  {[-5000,-1000,-500,500,1000,5000].map(delta=>(
+                    <button key={delta} onClick={()=>adjustStock(item.id,delta)}
+                      style={{background:delta<0?"#fee2e2":`${C.red}15`,border:`1px solid ${delta<0?"#fca5a5":C.tan}`,borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:11,color:delta<0?"#dc2626":C.espresso,fontFamily:"Georgia,serif"}}>
+                      {delta>0?"+":""}{delta>0?fmtW(delta):"-"+fmtW(Math.abs(delta))}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add/Edit modal */}
+      {showAdd&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(12,12,12,0.55)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}} onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+          <div style={{background:C.cream,borderRadius:20,border:`2px solid ${C.tan}`,width:500,padding:"28px",boxShadow:"0 32px 80px rgba(12,12,12,0.3)",maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+              <div style={{fontSize:18,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>{editId?"Edit Origin":"Add Bean Origin"}</div>
+              <button onClick={()=>setShowAdd(false)} style={{background:C.tan,border:"none",width:32,height:32,borderRadius:9,cursor:"pointer",fontSize:14,color:C.espresso}}>✕</button>
+            </div>
+
+            {/* Bean origin selector with dropdown */}
+            <div style={{marginBottom:14,position:"relative"}}>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Bean Origin</div>
+              <input value={beanSearch}
+                onChange={e=>{ setBeanSearch(e.target.value); setForm(f=>({...f,origin:e.target.value})); setShowDropdown(true); setIsCustomBean(true); }}
+                onFocus={()=>setShowDropdown(true)}
+                placeholder="Search or type a new bean name…"
+                style={{border:`1.5px solid ${form.origin?C.red:C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:14,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              {showDropdown&&(
+                <div style={{position:"absolute",top:"100%",left:0,right:0,background:C.white,border:`1.5px solid ${C.tan}`,borderRadius:12,boxShadow:"0 12px 40px rgba(12,12,12,0.15)",zIndex:100,maxHeight:220,overflowY:"auto",marginTop:4}}>
+                  {filtered.map(bean=>(
+                    <div key={bean.id} onClick={()=>selectBean(bean)}
+                      style={{padding:"10px 14px",cursor:"pointer",borderBottom:`1px solid ${C.cream}`}}
+                      onMouseEnter={e=>e.currentTarget.style.background=C.cream}
+                      onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.dark,fontFamily:"Georgia,serif"}}>{bean.name}</div>
+                      <div style={{fontSize:11,color:C.mocha}}>{[bean.supplier,bean.processing].filter(Boolean).join(" · ")}{bean.costPerKg?` · $${bean.costPerKg}/kg`:""}</div>
+                    </div>
+                  ))}
+                  {beanSearch&&!beanCatalog.some(b=>b.name.toLowerCase()===beanSearch.toLowerCase())&&(
+                    <div onClick={()=>{ setForm(f=>({...f,origin:beanSearch})); setShowDropdown(false); setIsCustomBean(true); }}
+                      style={{padding:"10px 14px",cursor:"pointer",background:`${C.red}08`,borderTop:`1px solid ${C.tan}`}}>
+                      <div style={{fontSize:12,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>+ Add "{beanSearch}" as new bean</div>
+                      <div style={{fontSize:10,color:C.mocha}}>Will be saved to your bean list for future use</div>
+                    </div>
+                  )}
+                  {filtered.length===0&&!beanSearch&&(
+                    <div style={{padding:"14px",fontSize:12,color:C.mocha,textAlign:"center",fontStyle:"italic"}}>Type to search or add a new bean</div>
+                  )}
+                </div>
+              )}
+              {isCustomBean&&form.origin&&!beanCatalog.some(b=>b.name.toLowerCase()===form.origin.toLowerCase())&&(
+                <div style={{fontSize:10,color:C.red,marginTop:4,fontStyle:"italic"}}>✓ New bean — will be saved to your catalog after adding</div>
+              )}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Supplier</div>
+                <input value={form.supplier} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} placeholder="e.g. United Beans Inc."
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Processing</div>
+                <input value={form.processing} onChange={e=>setForm(f=>({...f,processing:e.target.value}))} placeholder="e.g. Washed, Natural…"
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Current Stock</div>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="number" min="0" value={form.stockG} onChange={e=>setForm(f=>({...f,stockG:e.target.value}))} placeholder="0"
+                    style={{flex:1,border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 12px",fontFamily:"Georgia,serif",fontSize:14,color:C.dark,background:C.white,outline:"none"}}/>
+                  <div style={{display:"flex",background:C.white,borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`}}>
+                    {["g","kg"].map(u=><button key={u} onClick={()=>setForm(f=>({...f,unit:u}))} style={{padding:"0 12px",background:form.unit===u?C.red:"transparent",color:form.unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:form.unit===u?700:400}}>{u}</button>)}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Cost per kg ($)</div>
+                <input type="number" min="0" step="0.01" value={form.costPerKg} onChange={e=>setForm(f=>({...f,costPerKg:e.target.value}))} placeholder="e.g. 16.20"
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:14,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Low stock alert (kg)</div>
+                <input type="number" min="0" step="0.1" value={form.lowAlertKg} onChange={e=>setForm(f=>({...f,lowAlertKg:e.target.value}))} placeholder="e.g. 5"
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:14,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Notes (optional)</div>
+                <input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Process notes, harvest year…"
+                  style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"10px 14px",width:"100%",fontFamily:"Georgia,serif",fontSize:14,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            </div>
+            <button onClick={saveItem} style={{width:"100%",padding:"13px",background:(!form.origin||!form.stockG)?C.tan:C.red,color:C.cream,border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,cursor:(!form.origin||!form.stockG)?"not-allowed":"pointer"}}>
+              {editId?"Save Changes →":"Add to Inventory →"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const SL = ({children,style={}}) => <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase",marginBottom:10,fontFamily:"Georgia,serif",...style}}>{children}</div>;
+
+// ════════════════ MAIN APP ════════════════
+export default function RoastCalc(){
+  const [client,setClient]=useState("");
+  const [amount,setAmount]=useState("");
+  const [unit,setUnit]=useState("g");
+  const [slots,setSlots]=useState([]);
+  const [pickerOpen,setPickerOpen]=useState(false);
+  const [roastLevel,setRoastLevel]=useState("medium");
+  const [customLoss,setCustomLoss]=useState(null);
+  const [format,setFormat]=useState("drip");
+  const [customFields,setCustomFields]=useState({name:"",type:"",capacity:"",roastTime:"",coolTime:""});
+  const [roundStates,setRoundStates]=useState({});
+  const [roundNotes,setRoundNotes]=useState({});
+  const [log,setLog]=useState([]);
+  const [schedule,setSchedule]=useState([]);
+  const [activeTab,setActiveTab]=useState("calc");
+  const [logSearch,setLogSearch]=useState("");
+  const [logStatusFilter,setLogStatusFilter]=useState("all");
+  const [storageReady,setStorageReady]=useState(false);
+  const [beanCatalog,setBeanCatalog]=useState(DEFAULT_BEAN_CATALOG); // user can add/delete beans
+  // Inventory
+  const [inventory,setInventory]=useState([
+    { id:"guji-g2",        origin:"Guji G2",                     supplier:"United Beans Inc.", processing:"Washed",    stockG:49380, costPerKg:16.20, lowAlertKg:5,  notes:"United Beans Inc. · Washed" },
+    { id:"ethiopian-elto", origin:"Ethiopian Elto G1",            supplier:"Showroom Coffee",   processing:"Natural",   stockG:29880, costPerKg:19.93, lowAlertKg:5,  notes:"Showroom Coffee · Natural" },
+    { id:"kenya-ndiara",   origin:"Kenya Ndiara FCS Week 15PB",   supplier:"Showroom Coffee",   processing:"Washed",    stockG:29880, costPerKg:26.37, lowAlertKg:5,  notes:"Showroom Coffee · Washed" },
+    { id:"paraiso-92",     origin:"Paraiso 92 Red Bourbon P-02",  supplier:"Cafe Marcarena",    processing:"Anaerobic", stockG:18050, costPerKg:21.94, lowAlertKg:3,  notes:"Cafe Marcarena · Anaerobic" },
+    { id:"lekempti-g4",   origin:"Lekempti G4",                  supplier:"Various",           processing:"Various",   stockG:0,     costPerKg:13.76, lowAlertKg:0,  notes:"KNDZ supply bean" },
+  ]); // [{id,origin,stockG,costPerKg,lowAlertKg,notes,supplier,processing}]
+  // Cost settings (persisted)
+  const [costs,setCosts]=useState({greenCostPerKg:16.20,packagingCostPerUnit:0.234,packagingFlatOverride:null,hourlyRate:25}); // drip bag avg from Hebei/Wenzhou
+  const [showCosts,setShowCosts]=useState(false);
+  // Packaging inventory
+  const [packagingInv,setPackagingInv]=useState([
+    { id:"drip-bag",   name:"Drip Bags",   icon:"💧", stock:0, unit:"bags",  lowAlert:500 },
+    { id:"steep-pack", name:"Steep Packs", icon:"🧃", stock:0, unit:"packs", lowAlert:500 },
+    { id:"pouch-250g", name:"250g Pouches",icon:"🫘", stock:0, unit:"pouches",lowAlert:100 },
+  ]);
+  // Calculator mode & bean selection
+  const [orderMode,setOrderMode]=useState("units");   // "units" | "weight"
+  const [unitCount,setUnitCount]=useState("");
+  const [gramsPerUnit,setGramsPerUnit]=useState(15);   // default drip/steep = 15g, whole = 250g
+  const [selectedBeanId,setSelectedBeanId]=useState(null);
+  const [showBeanPicker,setShowBeanPicker]=useState(false);
+
+  useEffect(()=>{
+    async function load(){
+      try{
+        const db = window.__db;
+        const { doc, getDoc } = window.Firestore;
+        const keys = [
+          ["log", setLog],
+          ["schedule", setSchedule],
+          ["inventory", setInventory],
+          ["costs", setCosts],
+          ["beanCatalog", setBeanCatalog],
+          ["packagingInv", setPackagingInv],
+        ];
+        for(const [key, setter] of keys){
+          try{
+            const snap = await getDoc(doc(db,"untamed-roastery",key));
+            if(snap.exists() && snap.data().value != null) setter(snap.data().value);
+          }catch(e){}
+        }
+      }catch(e){}
+      setStorageReady(true);
+    }
+    load();
+    // Real-time listener for changes made by other users
+    const db = window.__db;
+    const { doc, onSnapshot } = window.Firestore;
+    const setters = {log:setLog,schedule:setSchedule,inventory:setInventory,costs:setCosts,beanCatalog:setBeanCatalog,packagingInv:setPackagingInv};
+    const unsubs = Object.entries(setters).map(([key,setter])=>
+      onSnapshot(doc(db,"untamed-roastery",key),(snap)=>{
+        if(snap.exists() && snap.data().value != null) setter(snap.data().value);
+      })
+    );
+    return ()=>unsubs.forEach(u=>u());
+  },[]);
+
+  function fbSet(key, value){
+    if(!storageReady || !window.__db) return;
+    const { doc, setDoc } = window.Firestore;
+    setDoc(doc(window.__db,"untamed-roastery",key),{value}).catch(()=>{});
+  }
+  useEffect(()=>{ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
+  useEffect(()=>{ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
+  useEffect(()=>{ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
+  useEffect(()=>{ if(!storageReady)return; fbSet("costs",costs); },[costs,storageReady]);
+  useEffect(()=>{ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
+  useEffect(()=>{ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
+
+  // Derived grams from either mode
+  const gramsFromUnits = orderMode==="units" && unitCount ? parseFloat(unitCount)*gramsPerUnit : 0;
+  const gramsFromWeight = orderMode==="weight" && amount ? (unit==="kg"?parseFloat(amount)*1000:parseFloat(amount)) : 0;
+  const grams = orderMode==="units" ? gramsFromUnits : gramsFromWeight;
+  // Selected bean
+  const selectedBean = inventory.find(b=>b.id===selectedBeanId)||null;
+  const level=ROAST_LEVELS.find(r=>r.id===roastLevel);
+  const effectiveLoss=customLoss!=null?customLoss/100:(level?.loss||0.16);
+
+  function resolveSlot(slot){
+    const base=MACHINES.find(m=>m.id===slot.id)||MACHINES[0];
+    if(slot.id==="custom"){
+      const rt=parseFloat(customFields.roastTime)||12;
+      return {...base,model:customFields.name||"My Machine",type:customFields.type||"Custom",capacity:parseFloat(customFields.capacity)||0,rt:{light:rt-2,"medium-light":rt-1,medium:rt,"medium-dark":rt+1,dark:rt+2},cool:parseFloat(customFields.coolTime)||6,qty:slot.qty};
+    }
+    return {...base,qty:slot.qty};
+  }
+  const resolved=slots.map(resolveSlot);
+  const roastedCapPerRound=resolved.reduce((s,m)=>s+((m.capacity||0)*m.qty*(1-effectiveLoss)),0);
+  const slowestRT=resolved.length>0?Math.max(...resolved.map(m=>m.rt?.[roastLevel]||12)):12;
+  const slowestCool=resolved.length>0?Math.max(...resolved.map(m=>m.cool||6)):6;
+  const timePerRound=slowestRT+slowestCool;
+  const rounds=roastedCapPerRound>0?Math.ceil(grams/roastedCapPerRound):0;
+  const totalRoastT=rounds*slowestRT;
+  const totalCoolT=rounds*slowestCool;
+  const totalTime=rounds*timePerRound;
+  const totalRoasted=roastedCapPerRound*rounds;
+  const wastage=Math.round(totalRoasted-grams);
+  const greenNeeded=grams/(1-effectiveLoss);
+  const canCompute=grams>0&&roastedCapPerRound>0;
+  // Cost breakdown (live)
+  const greenKg = greenNeeded/1000;
+  const beanCostPerKg = selectedBean?.costPerKg || costs.greenCostPerKg || 0;
+  const greenCost = greenKg * beanCostPerKg;
+  const unitsPerKg = format==="whole"?4 : format==="drip"?Math.round(1000/gramsPerUnit):Math.round(1000/gramsPerUnit);
+  const packagingUnits = orderMode==="units" ? (parseFloat(unitCount)||0) : Math.ceil((grams/1000)*unitsPerKg);
+  const packagingPerUnit = packagingUnits * (costs.packagingCostPerUnit||0);
+  const packagingCost = (costs.packagingFlatOverride!=null && costs.packagingFlatOverride!==""
+    ? parseFloat(costs.packagingFlatOverride)
+    : packagingPerUnit);
+  const labourCost = (totalTime/60)*(costs.hourlyRate||0);
+  const totalCost = greenCost + packagingCost + labourCost;
+  const costPerG = grams>0 ? totalCost/grams : 0;
+  const doneCount=Object.values(roundStates).filter(Boolean).length;
+  const hasCustom=slots.some(s=>s.id==="custom");
+
+  useEffect(()=>{setRoundStates({});setRoundNotes({});},[rounds]);
+
+  const aiLines=canCompute?[
+    `For the **${client||"order"}**: **${fmtW(grams)}** of **${level?.label}** roast (${FORMATS.find(f=>f.id===format)?.label}).`,
+    `Running **${resolved.map(m=>`${m.qty}× ${m.model}`).join(" + ")}** in parallel — **${rounds} round${rounds!==1?"s":""}** totalling **${fmtT(totalTime)}** (${fmtT(totalRoastT)} roasting + ${fmtT(totalCoolT)} cooling).`,
+    `Source **${fmtW(Math.ceil(greenNeeded))} green beans** — accounts for ~${Math.round(effectiveLoss*100)}% roast-loss at this level.`,
+    wastage>100?`You'll have **${fmtW(wastage)}** of overage — ideal for QC cupping or samples.`:`Minimal wastage of **${fmtW(wastage)}** — tight and efficient.`,
+    resolved.length>1?`⚡ Bottleneck: **${resolved.find(m=>(m.rt?.[roastLevel]||12)===slowestRT)?.model}** at ${slowestRT}min/batch.`:resolved[0]?.qty>1?`⚡ ${resolved[0].qty}× ${resolved[0].model} running in parallel.`:null,
+  ].filter(Boolean):null;
+
+  function addSlot(id){setSlots(p=>[...p,{id,qty:1}]);setPickerOpen(false);}
+  function removeSlot(i){setSlots(p=>p.filter((_,j)=>j!==i));}
+  function setQty(i,q){setSlots(p=>p.map((s,j)=>j===i?{...s,qty:Math.max(1,q)}:s));}
+  function toggleRound(i){
+    const wasOn = !!roundStates[i];
+    setRoundStates(p=>({...p,[i]:!p[i]}));
+    // Real-time inventory deduction per round
+    if(selectedBeanId && rounds > 0){
+      const greenPerRound = greenNeeded / rounds;
+      const delta = wasOn ? +greenPerRound : -greenPerRound; // undo if unchecking
+      setInventory(p=>p.map(b=>b.id===selectedBeanId
+        ? {...b, stockG: Math.max(0, b.stockG + delta)}
+        : b
+      ));
+    }
+  }
+  function setNote(i,n){setRoundNotes(p=>({...p,[i]:n}));}
+
+  function saveLog(){
+    if(!canCompute)return;
+    const fmtLabel=FORMATS.find(f=>f.id===format)?.label||"";
+    const entry={
+      id:Date.now(),client,grams,
+      roastLevel,
+      machines:resolved.map(m=>`${m.qty}× ${m.model}`).join(", "),
+      level:level?.label,lossPercent:Math.round(effectiveLoss*100),
+      rounds,greenNeeded:Math.ceil(greenNeeded),totalTime,roastTime:totalRoastT,coolTime:totalCoolT,wastage,
+      format:fmtLabel,status:"pending",orderNote:"",
+      beanOrigin:selectedBean?.origin||null,
+      beanOriginId:selectedBeanId||null,
+      greenCostPerKg:beanCostPerKg||null,
+      totalCost:totalCost>0?totalCost:null,
+      costPerKg:costPerG>0?costPerG*1000:null,
+      sellPricePerKg:null,margin:null,
+      unitCount:orderMode==="units"?parseFloat(unitCount)||0:null,
+      gramsPerUnit:orderMode==="units"?gramsPerUnit:null,
+    };
+    setLog(p=>[entry,...p]);
+    // Note: green bean inventory is already deducted in real-time per round via toggleRound
+    // Only deduct any remaining rounds that weren't manually checked off
+    if(selectedBeanId && rounds > 0){
+      const uncheckedRounds = rounds - doneCount;
+      if(uncheckedRounds > 0){
+        const greenPerRound = greenNeeded / rounds;
+        const remaining = greenPerRound * uncheckedRounds;
+        setInventory(p=>p.map(b=>b.id===selectedBeanId
+          ? {...b, stockG: Math.max(0, b.stockG - remaining)}
+          : b
+        ));
+      }
+    }
+    // Deduct packaging inventory
+    if(packagingUnits>0){
+      const pkgId = format==="drip"?"drip-bag":format==="steep"?"steep-pack":"pouch-250g";
+      setPackagingInv(p=>p.map(pk=>pk.id===pkgId
+        ? {...pk, stock:Math.max(0, pk.stock - packagingUnits)}
+        : pk
+      ));
+    }
+    setActiveTab("log");
+  }
+
+  function deleteEntry(id){setLog(p=>p.filter(e=>e.id!==id));}
+  function updateEntry(updated){setLog(p=>p.map(e=>e.id===updated.id?updated:e));}
+
+  const filteredLog=log.filter(e=>{
+    const matchSearch=!logSearch||e.client?.toLowerCase().includes(logSearch.toLowerCase())||e.machines?.toLowerCase().includes(logSearch.toLowerCase());
+    const matchStatus=logStatusFilter==="all"||e.status===logStatusFilter;
+    return matchSearch&&matchStatus;
+  });
+
+  function exportCSV(){
+    const headers=["Date","Client","Machines","Amount (g)","Format","Roast Level","Rounds","Total Time (min)","Green Beans (g)","Wastage (g)","Status","Margin ($)","Notes"];
+    const rows=filteredLog.map(e=>[fmtDate(e.id),e.client||"",e.machines||"",e.grams,e.format||"",e.level||"",e.rounds,e.totalTime,e.greenNeeded,e.wastage,e.status||"",e.margin!=null?e.margin.toFixed(2):"",`"${(e.orderNote||"").replace(/"/g,'""')}"`]);
+    const csv=[headers,...rows].map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="untamed-roast-log.csv";a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const totalOrders=log.length;
+  const totalKgRoasted=log.reduce((s,e)=>s+(e.grams/1000),0);
+  const totalRevenue=log.filter(e=>e.margin!=null).reduce((s,e)=>s+(e.margin||0),0);
+  const pendingCount=log.filter(e=>e.status==="pending"||e.status==="in-progress").length;
+
+  const TABS=[
+    {id:"calc",     label:"⚙️ Calculator"},
+    {id:"log",      label:`📋 Order Log${log.length>0?` (${log.length})`:""}`},
+    {id:"calendar", label:`📅 Calendar${schedule.length>0?` (${schedule.length})`:""}`},
+    {id:"inventory",label:`🌱 Inventory${inventory.length>0?` (${inventory.length})`:""}`},
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:C.cream,fontFamily:"Georgia,serif",color:C.dark,paddingBottom:60}}>
+      <style>{`
+        @keyframes fi{to{opacity:1;}} .ailn{opacity:0;animation:fi 0.4s forwards;margin:0 0 9px;font-size:13px;color:${C.cream};line-height:1.9;}
+        input:focus,textarea:focus,select:focus{outline:none;}
+        .inp{border:1.5px solid ${C.tan};border-radius:10px;padding:10px 14px;width:100%;font-family:Georgia,serif;font-size:14px;color:${C.dark};background:rgba(255,255,255,0.85);box-sizing:border-box;transition:border-color 0.2s;}
+        .inp:focus{border-color:${C.red};}
+        .savebtn{width:100%;padding:15px;background:${C.red};color:${C.cream};border:none;border-radius:12px;font-family:Georgia,serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.2s;}
+        .savebtn:hover{background:${C.espresso};}
+        .statcard{background:rgba(255,255,255,0.85);border:1.5px solid ${C.tan};border-radius:14px;padding:18px 12px;text-align:center;}
+        button{transition:all 0.15s;}
+        ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-track{background:${C.cream};} ::-webkit-scrollbar-thumb{background:${C.tan};border-radius:3px;}
+      `}</style>
+
+      {pickerOpen&&<MachinePicker onSelect={addSlot} onClose={()=>setPickerOpen(false)} existing={slots.map(s=>s.id)}/>}
+
+      {/* HEADER */}
+      <div style={{background:C.dark,padding:"16px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`3px solid ${C.red}`,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABQAFADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAUHBAYBAgMI/8QAKxAAAgEEAQQBAgYDAAAAAAAAAQIDAAQFESEGEhMxIhRBFTJRYXGRByPB/8QAGgEBAAIDAQAAAAAAAAAAAAAAAAMFAgQGAf/EACkRAAICAQMCBQQDAAAAAAAAAAABAhEDEiExBFEFFEFhoRMWMpGBsdH/2gAMAwEAAhEDEQA/APqOlKVUm6KUpQClKUApSlAKUpQClKUApSozqvJyYXpu/wArFEkz2sJkVHJCsdjgkfzXjaStmWOEsk1CPL2MNOs+l3tLm6XNW3htpRFM3y+LEkDjWyDo6I44rlusumFtrW5OZtvFdyGOFvl8mB0eNbABIGzxVBZWWa7upvpcMuOW7kDNGjN2b3sAF+FGzvVc4meWzu4GucMmRWzkJRHZuze9kErww3zr/lVnnp3VL5Oy+2cGnVqd9rjfH65+D6apUb0vknzHTuPyskSRPdwLKyISQpP2BNSVWadq0cbODxycJcrYUpSvTEUpSgFYOfyNvicLd5O6ieWC2jMjogBLDY4G+PvWZI6xxtI50qgsTrfAGzUBkM/0tfWS2V9dxSW19EukkjcLKrKWUb0PYUkD3xWE5JLncnwYnOaeltJ712KDyl7YqL+1xL3ws7yZZDHcldr2kkeie47Ot8cfzXbE39ixx8GWa+azsZWdY7Yr8u5gx9kdp2NE88Vc+Nm/xzjme6srfHW7QoJTKbR9qD6ILL/WueD+le+bh6AuL6VcpaYuS7V4kceE+RmlG012jbdw3yN1WeVfOpHZPxuP4PBOu/rxX9NK7NgwWQgyuHtMlbRNFDcxCREYAFQfsdcVm1rlh1H0rY4+2t7S7W3tEi3CPBKEWMaPdsr+UbHPrmtjBBAIIII2CPvVnCSa5s4zPilCTelpNurFKUrMhFKUoDBz9/Bi8Nc39zHJJDEn+xY9dxBIXjZA+9V9bJ0zdY8RXH4tdWVuiW1w8qRFII274YtlfzAHbB039iTVj5KytsjYy2V5GZIJQA69xXeiD7HPsCoxuk+ny8rfh4HlJMqrK4V9t3aIB0QGJIHoE8VBlxyk9qosuj6rDhxtStNv07f7z8GpXl503JC91LdZOSDzxWbwnsRW8ELCNi+xoMrlhyO46H7ViyxYSzRfqbPNee1ntYEvJktw8RVFaNCe7QDKqE7/AEPI5rd26T6fIcCw7A8axOEmdQ6BSuiAdH4kg7975r3m6exMpctbOpeaOc9kzpp417EI0eNLwNVH9Gb5o2l4jgjstVfx7e/b97WV5GcHbK9gZc9FHZQS286CO3HjifxpKz9vK8Mu3PJ0deqszDzxXGLtpoIZIYWjAiR/YQcKfZ4IAI/Yio9OlMCiSKtiR5EkRz55NssgCuCe7ZBCj+t+6mYY0hhSKMEIihVBO9ADQ5NSYscoPc1eu6vHnitN37nalKVOVopSlAKUpQClKUApSlAKUpQH/9k=" alt="Untamed Roastery" style={{width:52,height:52,borderRadius:8,objectFit:"contain"}}/>
+          <div>
+            <div style={{fontSize:9,letterSpacing:4,color:C.mocha,textTransform:"uppercase",marginBottom:1}}>Untamed Roastery</div>
+            <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif"}}>Roast Calculator</div>
+          </div>
+        </div>
+        <div style={{display:"flex",background:"rgba(255,255,255,0.08)",borderRadius:12,padding:4,gap:4}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"8px 18px",borderRadius:9,border:"none",cursor:"pointer",background:activeTab===t.id?C.red:"transparent",color:activeTab===t.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:12,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
+          ))}
+        </div>
+        <div style={{textAlign:"right",color:C.mocha,fontSize:11}}>
+          <div style={{color:C.red,fontSize:12,fontStyle:"italic",marginBottom:1}}>Multi-machine · Parallel scheduling</div>
+          <div>{new Date().toLocaleDateString("en-CA",{month:"long",day:"numeric",year:"numeric"})}</div>
+        </div>
+      </div>
+
+      {/* ── CALCULATOR TAB ── */}
+      {activeTab==="calc"&&(
+        <div style={{maxWidth:880,margin:"0 auto",padding:"32px 24px"}}>
+          {/* ── ORDER MODE TOGGLE ── */}
+          <div style={{display:"flex",background:"rgba(255,255,255,0.7)",borderRadius:12,padding:4,gap:4,marginBottom:20,border:`1.5px solid ${C.tan}`,width:"fit-content"}}>
+            {[{id:"units",label:"📦 By Unit Count",hint:"e.g. 4000 drip bags"},{id:"weight",label:"⚖️ By Weight",hint:"e.g. 5kg roasted"}].map(m=>(
+              <button key={m.id} onClick={()=>setOrderMode(m.id)} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:"pointer",background:orderMode===m.id?C.red:"transparent",color:orderMode===m.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:13,fontWeight:orderMode===m.id?700:400}}>
+                {m.label} <span style={{fontSize:10,opacity:0.7}}>— {m.hint}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:20}}>
+            <div>
+              <SL>Client / Order</SL>
+              <input className="inp" value={client} onChange={e=>setClient(e.target.value)} placeholder="e.g. KNDZ, Wedding, Retail batch…"/>
+            </div>
+            <div>
+              {orderMode==="units"?(
+                <>
+                  <SL>Number of Units</SL>
+                  <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
+                    <input className="inp" type="number" value={unitCount} onChange={e=>setUnitCount(e.target.value)} placeholder="e.g. 4000" style={{flex:1}}/>
+                    <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`,flexShrink:0}}>
+                      {FORMATS.map(f=><button key={f.id} onClick={()=>{
+                        setFormat(f.id);
+                        setGramsPerUnit(f.id==="whole"?250:15);
+                      }} style={{padding:"0 10px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,background:"rgba(255,255,255,0.6)",border:`1px solid ${C.tan}`,borderRadius:10,padding:"7px 12px"}}>
+                    <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Grams per unit:</span>
+                    <input type="number" min="1" step="1" value={gramsPerUnit} onChange={e=>setGramsPerUnit(parseFloat(e.target.value)||15)}
+                      style={{width:60,border:`1.5px solid ${C.red}`,borderRadius:8,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:C.red,background:C.cream,textAlign:"center",outline:"none"}}/>
+                    <span style={{fontSize:11,color:C.mocha}}>g</span>
+                    <div style={{display:"flex",gap:4,marginLeft:4}}>
+                      {[{label:"Untamed drip/steep",g:15},{label:"Untamed whole",g:250}].map(p=>(
+                        <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?`${C.red}20`:"transparent",border:`1px solid ${gramsPerUnit===p.g?C.red:C.tan}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
+                      ))}
+                    </div>
+                    {unitCount&&gramsPerUnit&&<span style={{marginLeft:"auto",fontSize:11,color:C.espresso,fontWeight:700,whiteSpace:"nowrap"}}>= {fmtW(parseFloat(unitCount)*gramsPerUnit)} roasted</span>}
+                  </div>
+                </>
+              ):(
+                <>
+                  <SL>Roasted Amount Needed</SL>
+                  <div style={{display:"flex",gap:8}}>
+                    <input className="inp" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 5000" style={{flex:1}}/>
+                    <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`}}>
+                      {["g","kg"].map(u=><button key={u} onClick={()=>setUnit(u)} style={{padding:"0 16px",background:unit===u?C.red:"transparent",color:unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:unit===u?700:400}}>{u}</button>)}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── BEAN SELECTOR ── */}
+          <div style={{marginBottom:20}}>
+            <SL>Bean Origin (from inventory)</SL>
+            <div style={{position:"relative"}}>
+              <button onClick={()=>setShowBeanPicker(v=>!v)}
+                style={{width:"100%",padding:"11px 16px",border:`2px solid ${selectedBean?C.red:C.tan}`,borderRadius:12,background:selectedBean?"rgba(255,255,255,0.95)":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                {selectedBean?(
+                  <div>
+                    <div style={{fontSize:14,fontWeight:700,color:C.dark}}>{selectedBean.origin}</div>
+                    <div style={{fontSize:11,color:C.mocha,marginTop:1}}>{[selectedBean.supplier,selectedBean.processing].filter(Boolean).join(" · ")} · ${selectedBean.costPerKg||0}/kg · {(selectedBean.stockG/1000).toFixed(2)}kg in stock</div>
+                  </div>
+                ):(
+                  <span style={{color:C.mocha,fontSize:13,fontStyle:"italic"}}>Select a bean from inventory…</span>
+                )}
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  {selectedBean&&canCompute&&(()=>{
+                    const needed=Math.ceil(greenNeeded);
+                    const enough=selectedBean.stockG>=needed;
+                    return <span style={{fontSize:11,fontWeight:700,background:enough?"#dcfce7":"#fee2e2",color:enough?"#16a34a":"#dc2626",border:`1px solid ${enough?"#86efac":"#fca5a5"}`,borderRadius:20,padding:"2px 10px"}}>
+                      {enough?`✓ ${((selectedBean.stockG-needed)/1000).toFixed(2)}kg remaining after`:`⚠ ${((needed-selectedBean.stockG)/1000).toFixed(2)}kg short`}
+                    </span>;
+                  })()}
+                  {selectedBean&&<button onClick={e=>{e.stopPropagation();setSelectedBeanId(null);}} style={{background:"#fee2e2",border:"none",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>✕</button>}
+                  <span style={{fontSize:12,color:C.mocha}}>{showBeanPicker?"▲":"▼"}</span>
+                </div>
+              </button>
+              {showBeanPicker&&(
+                <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:C.white,border:`2px solid ${C.tan}`,borderRadius:14,boxShadow:"0 16px 50px rgba(12,12,12,0.18)",zIndex:200,overflow:"hidden"}}>
+                  {inventory.length===0?(
+                    <div style={{padding:"24px",textAlign:"center",color:C.mocha,fontSize:12,fontStyle:"italic"}}>No beans in inventory yet — add them in the Inventory tab</div>
+                  ):inventory.map(bean=>{
+                    const needed=canCompute?Math.ceil(greenNeeded):0;
+                    const enough=bean.stockG>=needed&&needed>0;
+                    const isSelected=bean.id===selectedBeanId;
+                    return (
+                      <div key={bean.id} onClick={()=>{setSelectedBeanId(bean.id);setShowBeanPicker(false);setCosts(p=>({...p,greenCostPerKg:bean.costPerKg||p.greenCostPerKg}));}}
+                        style={{padding:"12px 16px",cursor:"pointer",background:isSelected?`${C.red}10`:C.white,borderBottom:`1px solid ${C.cream}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                        onMouseEnter={e=>{ if(!isSelected)e.currentTarget.style.background=C.cream; }}
+                        onMouseLeave={e=>{ if(!isSelected)e.currentTarget.style.background=C.white; }}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:isSelected?C.red:C.dark,fontFamily:"Georgia,serif"}}>{bean.origin}</div>
+                          <div style={{fontSize:11,color:C.mocha}}>{[bean.supplier,bean.processing].filter(Boolean).join(" · ")} · ${bean.costPerKg||0}/kg</div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:13,fontWeight:700,color:bean.stockG<(bean.lowAlertKg*1000||0)?"#d97706":C.espresso}}>{(bean.stockG/1000).toFixed(2)}kg</div>
+                          {needed>0&&<div style={{fontSize:10,color:enough?"#16a34a":"#dc2626",fontWeight:700}}>{enough?"✓ enough":"⚠ insufficient"}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1.6fr",gap:18,marginBottom:24}}>
+            <div>
+              {orderMode==="weight"&&(
+                <>
+                  <SL>Output Format</SL>
+                  <div style={{display:"flex",gap:8}}>
+                    {FORMATS.map(f=><button key={f.id} onClick={()=>setFormat(f.id)} style={{flex:1,padding:"10px 6px",border:`2px solid ${format===f.id?C.red:C.tan}`,background:format===f.id?C.red:"rgba(255,255,255,0.7)",color:format===f.id?C.cream:C.mocha,borderRadius:10,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:format===f.id?700:400,textAlign:"center"}}>
+                      <div style={{fontSize:18,marginBottom:4}}>{f.icon}</div>{f.label}
+                    </button>)}
+                  </div>
+                </>
+              )}
+              {orderMode==="units"&&(
+                <div style={{background:`${C.red}08`,border:`1.5px solid ${C.red}30`,borderRadius:12,padding:"12px 14px"}}>
+                  <div style={{fontSize:10,letterSpacing:2,color:C.red,textTransform:"uppercase",marginBottom:6}}>Order Summary</div>
+                  <div style={{fontSize:13,color:C.espresso,lineHeight:1.8}}>
+                    <strong style={{fontFamily:"Georgia,serif"}}>{unitCount||"—"}</strong> × {FORMATS.find(f=>f.id===format)?.label||"units"} at <strong style={{fontFamily:"Georgia,serif"}}>{gramsPerUnit}g</strong> each<br/>
+                    = <strong style={{color:C.red,fontFamily:"Georgia,serif"}}>{unitCount&&gramsPerUnit?fmtW(parseFloat(unitCount)*gramsPerUnit):"—"}</strong> roasted needed
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <SL>Roast Level</SL>
+              <div style={{display:"flex",gap:6}}>
+                {ROAST_LEVELS.map(l=><button key={l.id} onClick={()=>{setRoastLevel(l.id);setCustomLoss(null);}} style={{flex:1,padding:"8px 4px",border:`2px solid ${roastLevel===l.id?C.red:C.tan}`,background:roastLevel===l.id?C.red+"18":"rgba(255,255,255,0.7)",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:roastLevel===l.id?700:400,textAlign:"center",color:roastLevel===l.id?C.espresso:C.mocha}}>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:l.dot,margin:"0 auto 4px",border:roastLevel===l.id?`2px solid ${C.red}`:"2px solid transparent"}}/>
+                  {l.label}
+                </button>)}
+              </div>
+              <div style={{marginTop:10,display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.6)",border:`1px solid ${C.tan}`,borderRadius:10,padding:"8px 14px"}}>
+                <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Roast loss %</span>
+                <input type="number" min="5" max="30" step="0.5"
+                  value={customLoss!=null?customLoss:Math.round((level?.loss||0.16)*100)}
+                  onChange={e=>setCustomLoss(parseFloat(e.target.value))}
+                  style={{width:62,border:`1.5px solid ${customLoss!=null?C.red:C.tan}`,borderRadius:8,padding:"5px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:customLoss!=null?C.red:C.espresso,background:C.cream,textAlign:"center",outline:"none"}}/>
+                <span style={{fontSize:11,color:C.mocha}}>%</span>
+                {customLoss!=null
+                  ? <button onClick={()=>setCustomLoss(null)} style={{background:"transparent",border:`1px solid ${C.tan}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>Reset ({Math.round((level?.loss||0.16)*100)}%)</button>
+                  : <span style={{fontSize:11,color:C.mocha,fontStyle:"italic"}}>Default for {level?.label}</span>}
+              </div>
+            </div>
+          </div>
+          {/* Machines */}
+          <div style={{marginBottom:24}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <SL>Roaster Machines</SL>
+              <button onClick={()=>setPickerOpen(true)} style={{background:C.red,border:"none",color:C.cream,borderRadius:9,padding:"8px 18px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700}}>+ Add Machine</button>
+            </div>
+            {hasCustom&&(
+              <div style={{background:`${C.peach}30`,border:`1.5px solid ${C.peach}`,borderRadius:12,padding:14,marginBottom:12}}>
+                <SL>Custom Machine Specs</SL>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  {[{k:"name",ph:"Machine name"},{k:"type",ph:"Fuel type"},{k:"capacity",ph:"Max capacity (g)"},{k:"roastTime",ph:"Medium roast time (min)"},{k:"coolTime",ph:"Cooling time (min)"}].map(f=>(
+                    <input key={f.k} className="inp" placeholder={f.ph} value={customFields[f.k]} onChange={e=>setCustomFields(p=>({...p,[f.k]:e.target.value}))} style={{fontSize:12,padding:"8px 12px"}}/>
+                  ))}
+                </div>
+              </div>
+            )}
+            {slots.length===0
+              ? <div style={{border:`2px dashed ${C.tan}`,borderRadius:14,padding:"36px 24px",textAlign:"center",color:C.mocha,background:"rgba(255,255,255,0.4)"}}>
+                  <div style={{fontSize:40,marginBottom:10}}>🏭</div>
+                  <div style={{fontSize:15,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif",marginBottom:6}}>No machines added yet</div>
+                  <div style={{fontSize:12,fontStyle:"italic"}}>Click "+ Add Machine" above to get started</div>
+                </div>
+              : <div style={{display:"grid",gridTemplateColumns:slots.length>1?"1fr 1fr":"1fr",gap:12}}>
+                  {slots.map((slot,i)=><MachineSlotCard key={`${slot.id}-${i}`} slot={slot} roastLevel={roastLevel} onQty={q=>setQty(i,q)} onRemove={()=>removeSlot(i)}/>)}
+                </div>
+            }
+            {slots.length>1&&(
+              <div style={{marginTop:10,padding:"9px 14px",background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:10,fontSize:12,color:C.espresso,display:"flex",alignItems:"center",gap:8}}>
+                ⚡ All machines run <strong style={{color:C.red}}>&nbsp;simultaneously</strong>&nbsp;— effective batch: <strong>&nbsp;{fmtW(Math.round(roastedCapPerRound))}</strong>/round · bottleneck: {slowestRT}min/batch
+              </div>
+            )}
+          </div>
+
+          {/* ── PACKAGING STOCK STATUS ── */}
+          {canCompute&&packagingUnits>0&&(()=>{
+            const pkgId=format==="drip"?"drip-bag":format==="steep"?"steep-pack":"pouch-250g";
+            const pkg=packagingInv.find(p=>p.id===pkgId);
+            if(!pkg) return null;
+            const enough=pkg.stock>=packagingUnits;
+            return (
+              <div style={{marginBottom:16,padding:"10px 16px",background:enough?`#dcfce7`:`#fff3cd`,border:`1.5px solid ${enough?"#86efac":"#fbbf24"}`,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:18}}>{FORMATS.find(f=>f.id===format)?.icon}</span>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:enough?"#16a34a":"#92400e",fontFamily:"Georgia,serif"}}>
+                      {pkg.name}: {enough?`✓ enough in stock`:`⚠ need to restock`}
+                    </div>
+                    <div style={{fontSize:11,color:enough?"#16a34a":"#92400e"}}>
+                      Need <strong>{packagingUnits.toLocaleString()}</strong> · Have <strong>{pkg.stock.toLocaleString()}</strong>
+                      {!enough&&<> · Short <strong>{(packagingUnits-pkg.stock).toLocaleString()}</strong></>}
+                    </div>
+                  </div>
+                </div>
+                {!enough&&<div style={{fontSize:10,color:"#92400e",fontStyle:"italic",textAlign:"right"}}>Update stock in Inventory tab</div>}
+              </div>
+            );
+          })()}
+
+          {canCompute&&(
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:22}}>
+                {[
+                  {label:"Rounds",value:rounds,sub:`${fmtW(Math.round(roastedCapPerRound))}/round`,icon:"🔁"},
+                  {label:"Total Time",value:fmtT(totalTime),sub:`${fmtT(totalRoastT)} + ${fmtT(totalCoolT)} cool`,icon:"⏱"},
+                  {label:"Green Beans",value:fmtW(Math.ceil(greenNeeded)),sub:doneCount>0?`${fmtW(Math.round(greenNeeded/rounds*doneCount))} used · ${fmtW(Math.round(greenNeeded/rounds*(rounds-doneCount)))} left`:`~${Math.round(effectiveLoss*100)}% roast loss`,icon:"🌱",live:doneCount>0},
+                  {label:"Wastage",value:fmtW(wastage),sub:wastage>100?"good for QC / samples":"minimal overage",icon:"📊",warn:wastage>300},
+                ].map(s=>(
+                  <div key={s.label} className="statcard" style={{border:s.live?`2px solid ${C.red}`:undefined,background:s.live?"rgba(217,80,53,0.06)":undefined}}>
+                    <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
+                    <div style={{fontSize:10,letterSpacing:2.5,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>{s.label}</div>
+                    <div style={{fontFamily:"Georgia,serif",fontSize:24,color:s.warn?"#d97706":C.red,fontWeight:900,lineHeight:1}}>{s.value}</div>
+                    <div style={{fontSize:11,color:C.mocha,marginTop:6}}>{s.sub}</div>
+                    {s.live&&<div style={{fontSize:10,color:C.red,marginTop:4,fontWeight:700}}>● Live</div>}
+                  </div>
+                ))}
+              </div>
+              {/* ── COST BREAKDOWN ── */}
+              <div style={{border:`1.5px solid ${C.tan}`,borderRadius:14,marginBottom:20,overflow:"hidden",background:"rgba(255,255,255,0.85)"}}>
+                <button onClick={()=>setShowCosts(v=>!v)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:16}}>💰</span>
+                    <span style={{fontSize:13,fontWeight:700,color:C.espresso}}>Cost Breakdown</span>
+                    {totalCost>0&&(
+                      <div style={{display:"flex",gap:6}}>
+                        <span style={{fontSize:12,color:C.red,fontWeight:700,background:`${C.red}15`,border:`1px solid ${C.red}30`,borderRadius:20,padding:"2px 10px"}}>${totalCost.toFixed(2)} total</span>
+                        <span style={{fontSize:12,color:C.mocha,background:`${C.tan}30`,border:`1px solid ${C.tan}`,borderRadius:20,padding:"2px 10px"}}>${(costPerG*1000).toFixed(2)}/kg</span>
+                        <span style={{fontSize:12,color:C.mocha,background:`${C.tan}30`,border:`1px solid ${C.tan}`,borderRadius:20,padding:"2px 10px"}}>${costPerG.toFixed(4)}/g</span>
+                      </div>
+                    )}
+                  </div>
+                  <span style={{fontSize:12,color:C.mocha}}>{showCosts?"▲ Hide settings":"▼ Edit costs"}</span>
+                </button>
+                {showCosts&&(
+                  <div style={{padding:"0 18px 18px",borderTop:`1px solid ${C.tan}`}}>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:14}}>
+                      {/* Green bean cost */}
+                      <div style={{background:C.cream,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.tan}`}}>
+                        <div style={{fontSize:11,color:C.mocha,marginBottom:6}}>🌱 Green bean cost <span style={{color:C.tan}}>$/kg</span></div>
+                        <input type="number" min="0" step="0.01" value={costs.greenCostPerKg||""} placeholder="0.00"
+                          onChange={e=>setCosts(p=>({...p,greenCostPerKg:parseFloat(e.target.value)||0}))}
+                          style={{width:"100%",border:`1.5px solid ${C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,color:C.red,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+                        <div style={{fontSize:10,color:C.mocha,marginTop:4,fontStyle:"italic"}}>{greenKg.toFixed(2)}kg needed = ${greenCost.toFixed(2)}</div>
+                      </div>
+                      {/* Labour */}
+                      <div style={{background:C.cream,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.tan}`}}>
+                        <div style={{fontSize:11,color:C.mocha,marginBottom:6}}>⏱ Labour rate <span style={{color:C.tan}}>$/hr</span></div>
+                        <input type="number" min="0" step="1" value={costs.hourlyRate||""} placeholder="0.00"
+                          onChange={e=>setCosts(p=>({...p,hourlyRate:parseFloat(e.target.value)||0}))}
+                          style={{width:"100%",border:`1.5px solid ${C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,color:C.red,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+                        <div style={{fontSize:10,color:C.mocha,marginTop:4,fontStyle:"italic"}}>{(totalTime/60).toFixed(1)}h × ${costs.hourlyRate||0}/hr = ${labourCost.toFixed(2)}</div>
+                      </div>
+                      {/* Packaging — per unit + flat override */}
+                      <div style={{gridColumn:"1/-1",background:C.cream,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.tan}`}}>
+                        <div style={{fontSize:11,color:C.mocha,marginBottom:10}}>📦 Packaging cost</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:10,alignItems:"center"}}>
+                          <div>
+                            <div style={{fontSize:10,color:C.mocha,marginBottom:4}}>Per unit ($/unit)</div>
+                            <input type="number" min="0" step="0.01" value={costs.packagingCostPerUnit||""} placeholder="0.15"
+                              onChange={e=>setCosts(p=>({...p,packagingCostPerUnit:parseFloat(e.target.value)||0}))}
+                              style={{width:"100%",border:`1.5px solid ${costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.tan:C.red}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.mocha:C.red,background:C.white,outline:"none",boxSizing:"border-box",
+                                opacity:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?0.5:1}}/>
+                            <div style={{fontSize:10,color:C.mocha,marginTop:3,fontStyle:"italic"}}>{packagingUnits} units × ${costs.packagingCostPerUnit||0} = ${packagingPerUnit.toFixed(2)}</div>
+                          </div>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:C.tan,marginBottom:4}}>or override</div>
+                            <div style={{width:1,height:36,background:C.tan,margin:"0 auto"}}/>
+                          </div>
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                              <div style={{fontSize:10,color:C.mocha}}>Flat total ($)</div>
+                              {costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""&&(
+                                <button onClick={()=>setCosts(p=>({...p,packagingFlatOverride:null}))} style={{fontSize:9,color:C.mocha,background:"transparent",border:`1px solid ${C.tan}`,borderRadius:4,padding:"1px 6px",cursor:"pointer",fontFamily:"Georgia,serif"}}>clear</button>
+                              )}
+                            </div>
+                            <input type="number" min="0" step="0.01" value={costs.packagingFlatOverride!=null?costs.packagingFlatOverride:""} placeholder="leave blank to use per-unit"
+                              onChange={e=>setCosts(p=>({...p,packagingFlatOverride:e.target.value===""?null:e.target.value}))}
+                              style={{width:"100%",border:`1.5px solid ${costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.red:C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.red:C.mocha,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+                            <div style={{fontSize:10,color:C.mocha,marginTop:3,fontStyle:"italic"}}>{costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?"✓ Using flat override":"Using per-unit calc"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Mini summary */}
+                    <div style={{display:"flex",gap:8,marginTop:14,padding:"10px 14px",background:C.espresso,borderRadius:10,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+                      {[{l:"Green",v:`$${greenCost.toFixed(2)}`},{l:"Packaging",v:`$${packagingCost.toFixed(2)}`},{l:"Labour",v:`$${labourCost.toFixed(2)}`}].map(s=>(
+                        <div key={s.l} style={{textAlign:"center"}}>
+                          <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>{s.l}</div>
+                          <div style={{fontSize:16,fontWeight:700,color:C.cream,fontFamily:"Georgia,serif"}}>{s.v}</div>
+                        </div>
+                      ))}
+                      <div style={{width:1,height:30,background:"rgba(240,228,204,0.15)"}}/>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>Total</div>
+                        <div style={{fontSize:20,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>${totalCost.toFixed(2)}</div>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>Per kg</div>
+                        <div style={{fontSize:20,fontWeight:900,color:C.peach,fontFamily:"Georgia,serif"}}>${(costPerG*1000).toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{background:"rgba(255,255,255,0.7)",border:`1.5px solid ${C.tan}`,borderRadius:14,padding:20,marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                  <SL>Round-by-Round Tracker</SL>
+                  {rounds>0&&<div style={{fontSize:12,color:C.mocha,background:C.cream,padding:"4px 12px",borderRadius:20,border:`1px solid ${C.tan}`}}><span style={{fontWeight:700,color:doneCount===rounds?"#16a34a":C.red}}>{doneCount}</span>/{rounds} done{doneCount===rounds&&rounds>0&&" 🎉"}</div>}
+                </div>
+                {Array.from({length:rounds}).map((_,i)=>{
+                  const rem=grams-roastedCapPerRound*i;
+                  const thisRound=Math.min(rem,roastedCapPerRound);
+                  return <RoundRow key={i} idx={i} thisRoasted={thisRound} maxRoasted={roastedCapPerRound} roastLevel={roastLevel} cumTime={(i+1)*timePerRound} done={!!roundStates[i]} onToggle={()=>toggleRound(i)} note={roundNotes[i]||""} onNote={n=>setNote(i,n)}/>;
+                })}
+              </div>
+              {aiLines&&(
+                <div style={{background:C.espresso,borderRadius:14,padding:20,marginBottom:20,border:`2px solid ${C.red}30`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:C.red,boxShadow:`0 0 10px ${C.red}`}}/>
+                    <span style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase"}}>Roast Intelligence</span>
+                  </div>
+                  {aiLines.map((line,i)=><p key={i} className="ailn" style={{animationDelay:`${i*0.12}s`}} dangerouslySetInnerHTML={{__html:md(line)}}/>)}
+                </div>
+              )}
+              <div style={{background:"rgba(255,255,255,0.7)",border:`1.5px solid ${C.tan}`,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
+                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:10}}>On Save — inventory will be deducted:</div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  {selectedBean&&<div style={{background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:8,padding:"6px 12px"}}>
+                    <div style={{fontSize:10,color:C.mocha}}>🌱 Green beans</div>
+                    <div style={{fontSize:13,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>
+                      {doneCount>0
+                        ? <>−{fmtW(Math.round(greenNeeded/rounds*(rounds-doneCount)))} {selectedBean.origin} <span style={{fontSize:10,color:C.mocha,fontWeight:400}}>({doneCount}/{rounds} rounds already deducted live)</span></>
+                        : <>−{fmtW(Math.ceil(greenNeeded))} {selectedBean.origin}</>
+                      }
+                    </div>
+                  </div>}
+                  {packagingUnits>0&&<div style={{background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:8,padding:"6px 12px"}}>
+                    <div style={{fontSize:10,color:C.mocha}}>📦 Packaging</div>
+                    <div style={{fontSize:13,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>−{packagingUnits.toLocaleString()} {FORMATS.find(f=>f.id===format)?.label}</div>
+                  </div>}
+                  {!selectedBean&&<div style={{fontSize:12,color:C.mocha,fontStyle:"italic",padding:"6px 0"}}>Select a bean above to track green bean deduction</div>}
+                </div>
+              </div>
+              <button className="savebtn" onClick={saveLog}>Save to Order Log →</button>
+            </>
+          )}
+          {!canCompute&&(
+            <div style={{textAlign:"center",padding:"64px 0",color:C.mocha}}>
+              <div style={{fontSize:52,marginBottom:12}}>☕</div>
+              <div style={{fontSize:14,fontStyle:"italic"}}>Enter an order amount to begin calculating</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LOG TAB ── */}
+      {activeTab==="log"&&(
+        <div style={{maxWidth:980,margin:"0 auto",padding:"32px 24px"}}>
+          {log.length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+              {[
+                {label:"Total Orders",value:totalOrders,icon:"📦",color:C.red},
+                {label:"Total Roasted",value:`${totalKgRoasted.toFixed(1)}kg`,icon:"☕",color:C.espresso},
+                {label:"Active Orders",value:pendingCount,icon:"🔥",color:"#d97706"},
+                {label:"Est. Revenue",value:totalRevenue>0?`$${totalRevenue.toFixed(0)}`:"—",icon:"💰",color:"#16a34a"},
+              ].map(s=>(
+                <div key={s.label} className="statcard">
+                  <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
+                  <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>{s.label}</div>
+                  <div style={{fontFamily:"Georgia,serif",fontSize:26,color:s.color,fontWeight:900,lineHeight:1}}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
+            <input className="inp" value={logSearch} onChange={e=>setLogSearch(e.target.value)} placeholder="🔍  Search client or machine…" style={{flex:1,minWidth:200,padding:"9px 14px"}}/>
+            <select value={logStatusFilter} onChange={e=>setLogStatusFilter(e.target.value)} style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"9px 14px",fontFamily:"Georgia,serif",fontSize:13,color:C.espresso,background:C.white,cursor:"pointer"}}>
+              <option value="all">All statuses</option>
+              {STATUS_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+            {log.length>0&&<button onClick={exportCSV} style={{background:C.espresso,border:"none",color:C.cream,borderRadius:10,padding:"9px 18px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,whiteSpace:"nowrap"}}>↓ Export CSV</button>}
+          </div>
+          {filteredLog.length>0&&(
+            <div style={{display:"flex",gap:0,padding:"8px 16px",fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:4}}>
+              <div style={{flex:"0 0 130px"}}>Client</div><div style={{flex:"0 0 160px"}}>Machines</div><div style={{flex:"0 0 100px"}}>Amount</div>
+              <div style={{flex:"0 0 70px",textAlign:"center"}}>Rounds</div><div style={{flex:"0 0 70px",textAlign:"center"}}>Time</div>
+              <div style={{flex:1,textAlign:"center"}}>Status</div><div style={{flex:"0 0 90px",textAlign:"right"}}>Margin</div><div style={{flex:"0 0 28px"}}></div>
+            </div>
+          )}
+          {filteredLog.length>0
+            ? filteredLog.map(entry=><LogEntryCard key={entry.id} entry={entry} onDelete={()=>deleteEntry(entry.id)} onStatusChange={s=>updateEntry({...entry,status:s})} onNoteChange={updated=>updateEntry(updated)}/>)
+            : <div style={{textAlign:"center",padding:"80px 0",color:C.mocha}}>
+                <div style={{fontSize:48,marginBottom:12}}>📋</div>
+                <div style={{fontSize:16,fontWeight:700,color:C.espresso,marginBottom:8,fontFamily:"Georgia,serif"}}>{log.length===0?"No orders logged yet":"No orders match your filter"}</div>
+                <div style={{fontSize:13,fontStyle:"italic"}}>{log.length===0?"Calculate a roast and hit \"Save to Order Log\" to start tracking":"Try adjusting your search or filter"}</div>
+                {log.length===0&&<button onClick={()=>setActiveTab("calc")} style={{marginTop:20,background:C.red,border:"none",color:C.cream,borderRadius:10,padding:"10px 24px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700}}>Go to Calculator →</button>}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* ── CALENDAR TAB ── */}
+      {activeTab==="calendar"&&(
+        <CalendarTab log={log} schedule={schedule} onScheduleChange={setSchedule}/>
+      )}
+
+      {/* ── INVENTORY TAB ── */}
+      {activeTab==="inventory"&&(
+        <InventoryTab inventory={inventory} setInventory={setInventory} log={log} beanCatalog={beanCatalog} setBeanCatalog={setBeanCatalog} packagingInv={packagingInv} setPackagingInv={setPackagingInv}/>
+      )}
+    </div>
+  );
+}
+
+
+    const rootEl = document.getElementById("root");
+    const root = ReactDOM.createRoot(rootEl);
+    root.render(<RoastCalc/>);
+
+    // Update sync badge once Firestore is reachable
+    setTimeout(()=>{
+      document.getElementById("sdot").classList.remove("pulse");
+      document.getElementById("slabel").textContent = "Live sync ✓";
+    }, 2000);
+  </script>
+</body>
+</html>
