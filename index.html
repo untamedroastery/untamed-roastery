@@ -4,65 +4,61 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Untamed Roastery — Roast Calculator</title>
-
-  <!-- React 18 -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Babel for JSX transpilation -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Firebase compat (UMD — works alongside Babel, no ES module conflict) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
   <script>
-    // Init Firebase using compat SDK (global firebase object)
-    const firebaseConfig = {
-      apiKey: "AIzaSyDZjDQAjqZEz_jeyk1MxdHNCb4dd58UBlM",
-      authDomain: "untamed-roastery.firebaseapp.com",
-      projectId: "untamed-roastery",
-      storageBucket: "untamed-roastery.firebasestorage.app",
-      messagingSenderId: "631803917381",
-      appId: "1:631803917381:web:43e737ea015f44ce215f2c"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    // Expose Firestore methods so React app can use them
-    window.__db = db;
-    window.Firestore = {
-      doc:       (db, col, id) => db.collection(col).doc(id),
-      getDoc:    (ref)         => ref.get(),
-      setDoc:    (ref, data)   => ref.set(data),
-      onSnapshot:(ref, cb)     => ref.onSnapshot(snap => cb({ exists: ()=>snap.exists, data: ()=>snap.data() })),
-    };
+    firebase.initializeApp({
+      apiKey:"AIzaSyDZjDQAjqZEz_jeyk1MxdHNCb4dd58UBlM",
+      authDomain:"untamed-roastery.firebaseapp.com",
+      projectId:"untamed-roastery",
+      storageBucket:"untamed-roastery.firebasestorage.app",
+      messagingSenderId:"631803917381",
+      appId:"1:631803917381:web:43e737ea015f44ce215f2c"
+    });
+    window.__db = firebase.firestore();
   </script>
-
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #F0E4CC; }
-    #root { min-height: 100vh; }
-    #syncBadge {
-      position: fixed; bottom: 12px; right: 12px;
-      background: #0C0C0C; color: #F0E4CC;
-      font-size: 11px; padding: 6px 14px; border-radius: 20px;
-      font-family: Georgia, serif; z-index: 9999;
-      display: flex; align-items: center; gap: 7px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-    }
-    .sdot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; flex-shrink:0; }
-    .sdot.pulse { background: #d97706; animation: blink 1s infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#F0E4CC}
+    #root{min-height:100vh}
+    #syncBadge{position:fixed;bottom:12px;right:12px;background:#0C0C0C;color:#F0E4CC;font-size:11px;padding:6px 14px;border-radius:20px;font-family:Georgia,serif;z-index:9999;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(0,0,0,0.35)}
+    .sdot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
+    .sdot.pulse{background:#d97706;animation:blink 1s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
   </style>
 </head>
 <body>
   <div id="root"></div>
   <div id="syncBadge"><div class="sdot pulse" id="sdot"></div><span id="slabel">Connecting…</span></div>
-
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-
+  
+  <!-- Load Babel but prevent it from auto-processing scripts -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" data-plugins="none"></script>
+  <script>
+    // Disable Babel's auto-transform of existing script tags
+    // Then manually transform and execute only our app code
+    var appScript = document.getElementById('app-source').textContent;
+    var transformed = Babel.transform(appScript, {
+      presets: ['react'],
+      sourceType: 'script',
+      plugins: []
+    }).code;
+    var useState = React.useState;
+    var useEffect = React.useEffect;
+    eval(transformed);
+    var root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(RoastCalc, null));
+    setTimeout(function(){
+      document.getElementById('sdot').classList.remove('pulse');
+      document.getElementById('slabel').textContent = 'Live sync ✓';
+    }, 2500);
+  </script>
+  
+  <!-- App source stored as inert text, not executed by browser -->
+  <script id="app-source" type="text/plain">
+var useState = React.useState;
+var useEffect = React.useEffect;
 
 const C = {
   cream:"#F0E4CC", red:"#D95035", dark:"#0C0C0C",
@@ -1156,44 +1152,39 @@ export default function RoastCalc(){
   const [showBeanPicker,setShowBeanPicker]=useState(false);
 
   useEffect(()=>{
-    async function load(){
-      try{
-        const db = window.__db;
-        const { doc, getDoc } = window.Firestore;
-        const keys = [
-          ["log", setLog],
-          ["schedule", setSchedule],
-          ["inventory", setInventory],
-          ["costs", setCosts],
-          ["beanCatalog", setBeanCatalog],
-          ["packagingInv", setPackagingInv],
-        ];
-        for(const [key, setter] of keys){
-          try{
-            const snap = await getDoc(doc(db,"untamed-roastery",key));
-            if(snap.exists() && snap.data().value != null) setter(snap.data().value);
-          }catch(e){}
-        }
-      }catch(e){}
-      setStorageReady(true);
-    }
-    load();
-    // Real-time listener for changes made by other users
     const db = window.__db;
-    const { doc, onSnapshot } = window.Firestore;
-    const setters = {log:setLog,schedule:setSchedule,inventory:setInventory,costs:setCosts,beanCatalog:setBeanCatalog,packagingInv:setPackagingInv};
-    const unsubs = Object.entries(setters).map(([key,setter])=>
-      onSnapshot(doc(db,"untamed-roastery",key),(snap)=>{
-        if(snap.exists() && snap.data().value != null) setter(snap.data().value);
-      })
-    );
+    const unsubs = [];
+    const keys = [
+      ["log", setLog],
+      ["schedule", setSchedule],
+      ["inventory", setInventory],
+      ["costs", setCosts],
+      ["beanCatalog", setBeanCatalog],
+      ["packagingInv", setPackagingInv],
+    ];
+    // Load initial data then listen for real-time changes
+    Promise.all(keys.map(([key])=>db.collection("untamed-roastery").doc(key).get()))
+      .then(snaps=>{
+        snaps.forEach((snap,i)=>{
+          if(snap.exists && snap.data() && snap.data().value != null){
+            keys[i][1](snap.data().value);
+          }
+        });
+        setStorageReady(true);
+      }).catch(()=>setStorageReady(true));
+    // Real-time listeners
+    keys.forEach(([key,setter])=>{
+      const unsub = db.collection("untamed-roastery").doc(key).onSnapshot(snap=>{
+        if(snap.exists && snap.data() && snap.data().value != null) setter(snap.data().value);
+      });
+      unsubs.push(unsub);
+    });
     return ()=>unsubs.forEach(u=>u());
   },[]);
 
   function fbSet(key, value){
     if(!storageReady || !window.__db) return;
-    const { doc, setDoc } = window.Firestore;
-    setDoc(doc(window.__db,"untamed-roastery",key),{value}).catch(()=>{});
+    window.__db.collection("untamed-roastery").doc(key).set({value}).catch(()=>{});
   }
   useEffect(()=>{ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
   useEffect(()=>{ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
@@ -1816,16 +1807,6 @@ export default function RoastCalc(){
   );
 }
 
-
-    const rootEl = document.getElementById("root");
-    const root = ReactDOM.createRoot(rootEl);
-    root.render(<RoastCalc/>);
-
-    // Update sync badge once Firestore is reachable
-    setTimeout(()=>{
-      document.getElementById("sdot").classList.remove("pulse");
-      document.getElementById("slabel").textContent = "Live sync ✓";
-    }, 2000);
   </script>
 </body>
 </html>
