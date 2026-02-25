@@ -1089,7 +1089,7 @@ function InventoryTab({ inventory, setInventory, log, beanCatalog, setBeanCatalo
 const SL = ({children,style={}}) => <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase",marginBottom:10,fontFamily:"Georgia,serif",...style}}>{children}</div>;
 
 // ════════════════ MAIN APP ════════════════
-export default function RoastCalc(){
+function RoastCalc(){
   const [client,setClient]=useState("");
   const [amount,setAmount]=useState("");
   const [unit,setUnit]=useState("g");
