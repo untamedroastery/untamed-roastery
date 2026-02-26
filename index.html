@@ -1298,15 +1298,14 @@ function MultiTrackSession({ inventory, onSaveSession }){
             </div>
           </div>
 
-          <div style={{padding:"10px 12px",borderTop:"1px solid #F0E4CC",display:"flex",gap:8,alignItems:"center"}}>
-            {(grams>0&&m)&&(savedTrackIds.has(track.id)
-              ? <div style={{display:"flex",alignItems:"center",gap:6,color:"#16a34a",fontSize:12,fontFamily:"Georgia,serif",fontWeight:700}}>✓ Saved to Order Log</div>
-              : <button onClick={function(){ onSaveSession([buildEntry(track)]); setSavedTrackIds(function(p){ var s=new Set(p); s.add(track.id); return s; }); }}
-                  style={{flex:1,padding:"9px 14px",background:color,color:"#fff",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>
-                  Save Track {idx+1} to Order Log
-                </button>
-            )}
-          </div>
+          {(grams>0&&m)&&(
+            <div style={{padding:"10px 12px",borderTop:"1px solid #F0E4CC",display:"flex",gap:8,alignItems:"center"}}>
+              {savedTrackIds.has(track.id)
+                ? <div style={{display:"flex",alignItems:"center",gap:6,color:"#16a34a",fontSize:12,fontFamily:"Georgia,serif",fontWeight:700}}>✓ Saved to Order Log</div>
+                : <button onClick={function(){ onSaveSession([buildEntry(track)]); setSavedTrackIds(function(p){ var s=new Set(p); s.add(track.id); return s; }); }} style={{flex:1,padding:"9px 14px",background:color,color:"#fff",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>Save Track {idx+1} to Log</button>
+              }
+            </div>
+          )}
         </div>
         );
       })}
