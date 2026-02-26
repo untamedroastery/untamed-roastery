@@ -1086,6 +1086,19 @@ function InventoryTab({ inventory, setInventory, log, beanCatalog, setBeanCatalo
 const SL = ({children,style={}}) => <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase",marginBottom:10,fontFamily:"Georgia,serif",...style}}>{children}</div>;
 
 // ─── MULTI-TRACK SESSION ───────────────────────────────────────────
+function TrackSaveBtn(props){
+  if(props.saved){
+    return React.createElement("div",{style:{padding:"10px 12px",borderTop:"1px solid #F0E4CC",display:"flex",gap:6,alignItems:"center",color:"#16a34a",fontSize:12,fontFamily:"Georgia,serif",fontWeight:700}},
+      "✓ Saved to Order Log"
+    );
+  }
+  return React.createElement("div",{style:{padding:"10px 12px",borderTop:"1px solid #F0E4CC"}},
+    React.createElement("button",{
+      onClick:props.onSave,
+      style:{width:"100%",padding:"9px 14px",background:props.color,color:"#fff",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}
+    },"Save Track "+(props.trackIdx+1)+" to Order Log")
+  );
+}
 function MultiTrackSession({ inventory, onSaveSession }){
   const { useState, useEffect } = React;
   const C2 = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF",peach:"#E3A88E"};
@@ -1298,14 +1311,12 @@ function MultiTrackSession({ inventory, onSaveSession }){
             </div>
           </div>
 
-          {(grams>0&&m)&&(
-            <div style={{padding:"10px 12px",borderTop:"1px solid #F0E4CC",display:"flex",gap:8,alignItems:"center"}}>
-              {savedTrackIds.has(track.id)
-                ? <div style={{display:"flex",alignItems:"center",gap:6,color:"#16a34a",fontSize:12,fontFamily:"Georgia,serif",fontWeight:700}}>✓ Saved to Order Log</div>
-                : <button onClick={function(){ onSaveSession([buildEntry(track)]); setSavedTrackIds(function(p){ var s=new Set(p); s.add(track.id); return s; }); }} style={{flex:1,padding:"9px 14px",background:color,color:"#fff",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>Save Track {idx+1} to Log</button>
-              }
-            </div>
-          )}
+          {(grams>0&&m)&&React.createElement(TrackSaveBtn,{
+            saved:savedTrackIds.has(track.id),
+            color:color,
+            trackIdx:idx,
+            onSave:function(){ onSaveSession([buildEntry(track)]); setSavedTrackIds(function(p){ var s=new Set(p); s.add(track.id); return s; }); }
+          })}
         </div>
         );
       })}
