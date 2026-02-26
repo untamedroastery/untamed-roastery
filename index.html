@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <title>Untamed Roastery — Roast Calculator</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -19,10 +19,12 @@
     });
     window.__db = firebase.firestore();
   </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
+    html,body{overflow-x:hidden;max-width:100vw}
     body{background:#F0E4CC}
-    #root{min-height:100vh}
+    #root{min-height:100vh;overflow-x:hidden}
     #syncBadge{position:fixed;bottom:12px;right:12px;background:#0C0C0C;color:#F0E4CC;font-size:11px;padding:6px 14px;border-radius:20px;font-family:Georgia,serif;z-index:9999;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(0,0,0,0.35)}
     .sdot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
     .sdot.pulse{background:#d97706;animation:blink 1s infinite}
@@ -32,11 +34,6 @@
 <body>
   <div id="root"></div>
   <div id="syncBadge"><div class="sdot pulse" id="sdot"></div><span id="slabel">Connecting…</span></div>
-  
-  <!-- Load Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- App source stored as inert text, not executed by browser -->
   <script id="app-source" type="text/plain">
 var useState = React.useState;
 var useEffect = React.useEffect;
@@ -270,7 +267,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
       </div>
       {expanded&&(
         <div style={{borderTop:`1px solid ${C.tan}`,background:C.cream,padding:"16px 18px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:14}}>
             {[
               {l:"Green Beans Sourced",v:fmtW(entry.greenNeeded)},{l:"Roast Loss",v:`~${entry.lossPercent||16}%`},
               {l:"Wastage",v:fmtW(entry.wastage)},{l:"Roasted At",v:fmtDateFull(entry.id)},
@@ -1088,6 +1085,276 @@ function InventoryTab({ inventory, setInventory, log, beanCatalog, setBeanCatalo
 
 const SL = ({children,style={}}) => <div style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase",marginBottom:10,fontFamily:"Georgia,serif",...style}}>{children}</div>;
 
+// ─── MULTI-TRACK SESSION ───────────────────────────────────────────
+function MultiTrackSession({ inventory, onSaveSession }){
+  const { useState, useEffect } = React;
+  const C2 = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF",peach:"#E3A88E"};
+  const TRACK_COLORS = ["#D95035","#2563eb","#16a34a","#7c3aed","#d97706","#0891b2"];
+
+  const newTrack = () => ({
+    id: Date.now()+Math.random(),
+    machineId: "", beanId: "", roastLevel: "medium",
+    gramsInput: "", gramsUnit: "g", grams: 0, roundStates: {},
+  });
+
+  const [tracks, setTracks] = useState([newTrack(), newTrack()]);
+  const [sessionName, setSessionName] = useState("");
+  const [globalTimer, setGlobalTimer] = useState(0);
+  const [sessionRunning, setSessionRunning] = useState(false);
+  const [savedTrackIds, setSavedTrackIds] = useState(new Set());
+
+  function buildEntry(t){
+    const m = MACHINES.find(x=>x.id===t.machineId);
+    const level = ROAST_LEVELS.find(r=>r.id===t.roastLevel)||ROAST_LEVELS[2];
+    const loss = level.loss;
+    const cap = m ? m.capacity*(1-loss) : 0;
+    const rounds = cap>0 ? Math.ceil(t.grams/cap) : 0;
+    const rt = m ? (m.rt?.[t.roastLevel]||12) : 12;
+    const cool = m ? (m.cool||6) : 6;
+    const totalTime = rounds*(rt+cool);
+    const bean = inventory.find(b=>b.id===t.beanId)||null;
+    return {
+      id: Date.now()+Math.random(),
+      client: sessionName||"Multi-track Session",
+      grams: t.grams, roastLevel: t.roastLevel, level: level.label,
+      machines: m ? `1× ${m.model}` : "Unknown",
+      rounds, totalTime, roastTime: rounds*rt, coolTime: rounds*cool,
+      greenNeeded: Math.ceil(t.grams/(1-loss)),
+      wastage: Math.round(cap*rounds - t.grams),
+      format: "whole", status: "pending", orderNote: "",
+      beanOrigin: bean?.origin||null, beanOriginId: t.beanId||null,
+      sessionDuration: globalTimer, isMultiTrack: true,
+    };
+  }
+
+  useEffect(() => {
+    if (!sessionRunning) return;
+    const t = setInterval(() => setGlobalTimer(s => s+1), 1000);
+    return () => clearInterval(t);
+  }, [sessionRunning]);
+
+  function fmtSec(s){ const m=Math.floor(s/60),sec=s%60; return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`; }
+  function updateTrack(id, updates){ setTracks(p => p.map(t => t.id===id ? {...t,...updates} : t)); }
+  function removeTrack(id){ setTracks(p => p.filter(t => t.id!==id)); }
+  function addTrack(){ setTracks(p => [...p, newTrack()]); }
+  function toggleRound(trackId, roundIdx, wasDone){
+    setTracks(p => p.map(t => {
+      if(t.id!==trackId) return t;
+      const rs = {...(t.roundStates||{})};
+      if(wasDone){ delete rs[roundIdx]; } else { rs[roundIdx] = Date.now(); }
+      return {...t, roundStates: rs};
+    }));
+  }
+
+  const totalGreen = tracks.reduce((s,t) => {
+    const level = ROAST_LEVELS.find(r=>r.id===t.roastLevel)||ROAST_LEVELS[2];
+    return s + (t.grams>0 ? t.grams/(1-level.loss) : 0);
+  }, 0);
+  const allReady = tracks.length>0 && tracks.every(t => t.machineId && t.grams>0);
+
+  function saveSession(){
+    const entries = tracks.filter(t=>t.machineId&&t.grams>0).map(t=>buildEntry(t));
+    onSaveSession(entries);
+  }
+
+  return (
+    <div style={{paddingBottom:24}}>
+      {/* Session header */}
+      <div style={{background:C2.espresso,borderRadius:14,padding:14,marginBottom:14}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:180}}>
+            <span style={{fontSize:16}}>⚡</span>
+            <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="Session name e.g. Feb 25 AM Production"
+              style={{flex:1,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(240,228,204,0.25)",borderRadius:8,padding:"7px 11px",color:C2.cream,fontFamily:"Georgia,serif",fontSize:12,outline:"none"}}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{fontFamily:"monospace",fontSize:20,color:sessionRunning?C2.red:C2.mocha,fontWeight:700,minWidth:56,textAlign:"center"}}>{fmtSec(globalTimer)}</div>
+            <button onClick={()=>setSessionRunning(v=>!v)}
+              style={{background:sessionRunning?"#fee2e2":C2.red,color:sessionRunning?"#dc2626":C2.cream,border:"none",borderRadius:9,padding:"8px 14px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+              {sessionRunning?"⏸ Pause":"▶ Start"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Track cards */}
+      {tracks.map((track,idx) => {
+        const m = MACHINES.find(x=>x.id===track.machineId);
+        const level = ROAST_LEVELS.find(r=>r.id===(track.roastLevel||"medium"))||ROAST_LEVELS[2];
+        const loss = level.loss;
+        const grams = track.grams||0;
+        const cap = m ? m.capacity*(1-loss) : 0;
+        const rounds = cap>0 ? Math.ceil(grams/cap) : 0;
+        const rt = m ? (m.rt?.[track.roastLevel||"medium"]||12) : 12;
+        const cool = m ? (m.cool||6) : 6;
+        const totalTime = rounds*(rt+cool);
+        const greenNeeded = grams>0 ? grams/(1-loss) : 0;
+        const bean = inventory.find(b=>b.id===track.beanId)||null;
+        const doneCount = Object.keys(track.roundStates||{}).length;
+        const color = TRACK_COLORS[idx % TRACK_COLORS.length];
+
+        return (
+          <div key={track.id} style={{border:`2px solid ${color}35`,borderRadius:14,background:"rgba(255,255,255,0.92)",overflow:"hidden",marginBottom:12}}>
+            {/* Track header */}
+            <div style={{background:`${color}10`,borderBottom:`1px solid ${color}20`,padding:"9px 13px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                <div style={{width:9,height:9,borderRadius:"50%",background:color,flexShrink:0}}/>
+                <span style={{fontSize:12,fontWeight:700,color:C2.espresso,fontFamily:"Georgia,serif"}}>Track {idx+1}</span>
+                {m&&<span style={{fontSize:10,color:C2.mocha,background:C2.cream,border:`1px solid ${C2.tan}`,borderRadius:20,padding:"1px 7px"}}>{m.model}</span>}
+                {bean&&<span style={{fontSize:10,color:color,background:`${color}15`,border:`1px solid ${color}40`,borderRadius:20,padding:"1px 7px"}}>{bean.origin.split(" ").slice(0,2).join(" ")}</span>}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:7}}>
+                {rounds>0&&<span style={{fontSize:11,color:C2.mocha,whiteSpace:"nowrap"}}><b style={{color:doneCount===rounds&&rounds>0?"#16a34a":color}}>{doneCount}</b>/{rounds} done</span>}
+                {tracks.length>1&&<button onClick={()=>removeTrack(track.id)} style={{background:"#fee2e2",border:"none",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>✕</button>}
+              </div>
+            </div>
+
+            <div style={{padding:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Machine</div>
+                  <select value={track.machineId||""} onChange={e=>updateTrack(track.id,{machineId:e.target.value})}
+                    style={{width:"100%",border:`1.5px solid ${track.machineId?color:C2.tan}`,borderRadius:9,padding:"8px 9px",fontFamily:"Georgia,serif",fontSize:12,color:C2.dark,background:C2.white,outline:"none",boxSizing:"border-box"}}>
+                    <option value="">Select machine…</option>
+                    {BRANDS.map(brand=>(
+                      <optgroup key={brand} label={brand}>
+                        {MACHINES.filter(mx=>mx.brand===brand).map(mx=><option key={mx.id} value={mx.id}>{mx.model} ({mx.tag})</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Roast Level</div>
+                  <select value={track.roastLevel||"medium"} onChange={e=>updateTrack(track.id,{roastLevel:e.target.value})}
+                    style={{width:"100%",border:`1.5px solid ${C2.tan}`,borderRadius:9,padding:"8px 9px",fontFamily:"Georgia,serif",fontSize:12,color:C2.dark,background:C2.white,outline:"none",boxSizing:"border-box"}}>
+                    {ROAST_LEVELS.map(l=><option key={l.id} value={l.id}>{l.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Target Roasted</div>
+                  <div style={{display:"flex",gap:4}}>
+                    <input type="number" placeholder="e.g. 2000" value={track.gramsInput||""} onChange={e=>{
+                      const raw=e.target.value;
+                      const g=(track.gramsUnit||"g")==="kg"?parseFloat(raw)*1000:parseFloat(raw);
+                      updateTrack(track.id,{gramsInput:raw,grams:isNaN(g)?0:g});
+                    }} style={{flex:1,border:`1.5px solid ${C2.tan}`,borderRadius:9,padding:"8px 9px",fontFamily:"Georgia,serif",fontSize:13,color:C2.dark,background:C2.white,outline:"none",boxSizing:"border-box"}}/>
+                    <div style={{display:"flex",background:C2.white,borderRadius:8,overflow:"hidden",border:`1px solid ${C2.tan}`,flexShrink:0}}>
+                      {["g","kg"].map(u=><button key={u} onClick={()=>{
+                        const g=u==="kg"?parseFloat(track.gramsInput||0)*1000:parseFloat(track.gramsInput||0);
+                        updateTrack(track.id,{gramsUnit:u,grams:isNaN(g)?0:g});
+                      }} style={{padding:"0 8px",background:(track.gramsUnit||"g")===u?color:"transparent",color:(track.gramsUnit||"g")===u?"#fff":C2.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11}}>{u}</button>)}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Bean Origin</div>
+                  <select value={track.beanId||""} onChange={e=>updateTrack(track.id,{beanId:e.target.value})}
+                    style={{width:"100%",border:`1.5px solid ${track.beanId?color:C2.tan}`,borderRadius:9,padding:"8px 9px",fontFamily:"Georgia,serif",fontSize:12,color:C2.dark,background:C2.white,outline:"none",boxSizing:"border-box"}}>
+                    <option value="">Select bean…</option>
+                    {inventory.map(b=><option key={b.id} value={b.id}>{b.origin} ({(b.stockG/1000).toFixed(1)}kg)</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {grams>0&&m&&(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:rounds>0?10:0}}>
+                  {[{l:"Rounds",v:rounds},{l:"Est. Time",v:fmtT(totalTime)},{l:"Green",v:fmtW(Math.ceil(greenNeeded))}].map(s=>(
+                    <div key={s.l} style={{background:C2.white,border:`1px solid ${C2.tan}`,borderRadius:8,padding:"5px 6px",textAlign:"center"}}>
+                      <div style={{fontSize:9,color:C2.mocha,textTransform:"uppercase",letterSpacing:1}}>{s.l}</div>
+                      <div style={{fontSize:13,fontWeight:700,color,fontFamily:"Georgia,serif"}}>{s.v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {rounds>0&&(
+                <div style={{background:C2.cream,borderRadius:10,padding:10}}>
+                  <div style={{fontSize:10,color:C2.mocha,marginBottom:7,textTransform:"uppercase",letterSpacing:1.5,display:"flex",justifyContent:"space-between"}}>
+                    <span>Round Tracker</span>
+                    <span style={{color:doneCount===rounds&&rounds>0?"#16a34a":C2.mocha}}>{doneCount}/{rounds} {doneCount===rounds&&rounds>0&&"🎉"}</span>
+                  </div>
+                  {Array.from({length:rounds}).map((_,i)=>{
+                    const done = !!(track.roundStates||{})[i];
+                    return (
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                        <button onClick={()=>toggleRound(track.id,i,done)}
+                          style={{width:22,height:22,borderRadius:6,border:`2px solid ${done?"#16a34a":color}`,background:done?"#16a34a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.2s"}}>
+                          {done&&<span style={{color:"#fff",fontSize:11,fontWeight:900}}>✓</span>}
+                        </button>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                            <span style={{fontSize:11,color:C2.espresso}}>R{i+1}</span>
+                            <span style={{fontSize:10,color:C2.mocha}}>{fmtT((i+1)*(rt+cool))}</span>
+                          </div>
+                          <div style={{height:4,background:"rgba(0,0,0,0.06)",borderRadius:2,overflow:"hidden"}}>
+                            <div style={{height:"100%",width:done?"100%":"0%",background:color,borderRadius:2,transition:"width 0.3s"}}/>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Per-track save */}
+          {grams>0&&m&&(
+            <div style={{padding:"10px 12px",borderTop:`1px solid ${C2.cream}`,display:"flex",gap:8,alignItems:"center"}}>
+              {savedTrackIds.has(track.id)?(
+                <div style={{display:"flex",alignItems:"center",gap:6,color:"#16a34a",fontSize:12,fontFamily:"Georgia,serif",fontWeight:700}}>
+                  <span>✓</span> Saved to Order Log
+                </div>
+              ):(
+                <button onClick={()=>{
+                  onSaveSession([buildEntry(track)]);
+                  setSavedTrackIds(p=>new Set([...p,track.id]));
+                }}
+                  style={{flex:1,padding:"9px 14px",background:color,color:"#fff",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>
+                  ↓ Save Track {idx+1} to Order Log
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        );
+      })}
+
+      <button onClick={addTrack} style={{width:"100%",padding:11,border:`2px dashed ${C2.tan}`,borderRadius:12,background:"transparent",cursor:"pointer",color:C2.mocha,fontFamily:"Georgia,serif",fontSize:13,marginBottom:12,transition:"all 0.2s"}}>
+        + Add Another Track
+      </button>
+
+      {tracks.filter(t=>t.grams>0&&t.machineId).length>0&&(
+        <div style={{background:C2.espresso,borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",gap:16,flexWrap:"wrap",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+            {[{l:"Tracks",v:tracks.filter(t=>t.grams>0&&t.machineId).length},{l:"Total Green",v:fmtW(Math.ceil(totalGreen))},{l:"Session",v:fmtSec(globalTimer)}].map(s=>(
+              <div key={s.l} style={{textAlign:"center"}}>
+                <div style={{fontSize:9,color:C2.mocha,letterSpacing:2,textTransform:"uppercase"}}>{s.l}</div>
+                <div style={{fontSize:16,fontWeight:700,color:C2.cream,fontFamily:s.l==="Session"?"monospace":"Georgia,serif"}}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+          {savedTrackIds.size<tracks.filter(t=>t.grams>0&&t.machineId).length&&(
+            <div style={{fontSize:11,color:C2.mocha,fontStyle:"italic"}}>{savedTrackIds.size} of {tracks.filter(t=>t.grams>0&&t.machineId).length} saved</div>
+          )}
+        </div>
+      )}
+
+      {tracks.filter(t=>t.grams>0&&t.machineId&&!savedTrackIds.has(t.id)).length>0&&(
+        <button onClick={()=>{
+          const unsaved = tracks.filter(t=>t.grams>0&&t.machineId&&!savedTrackIds.has(t.id));
+          const entries = unsaved.map(t=>buildEntry(t));
+          onSaveSession(entries);
+          setSavedTrackIds(p=>new Set([...p,...unsaved.map(t=>t.id)]));
+        }}
+          style={{width:"100%",padding:14,background:"#D95035",color:"#F0E4CC",border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,cursor:"pointer",letterSpacing:1}}>
+          Save All Unsaved Tracks →
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ════════════════ MAIN APP ════════════════
 function RoastCalc(){
   const [client,setClient]=useState("");
@@ -1126,6 +1393,7 @@ function RoastCalc(){
     { id:"pouch-250g", name:"250g Pouches",icon:"🫘", stock:0, unit:"pouches",lowAlert:100 },
   ]);
   // Calculator mode & bean selection
+  const [calcMode,setCalcMode]=useState("single");    // "single" | "multi"
   const [orderMode,setOrderMode]=useState("units");   // "units" | "weight"
   const [unitCount,setUnitCount]=useState("");
   const [gramsPerUnit,setGramsPerUnit]=useState(15);   // default drip/steep = 15g, whole = 250g
@@ -1134,39 +1402,25 @@ function RoastCalc(){
 
   useEffect(()=>{
     const db = window.__db;
-    const unsubs = [];
     const keys = [
-      ["log", setLog],
-      ["schedule", setSchedule],
-      ["inventory", setInventory],
-      ["costs", setCosts],
-      ["beanCatalog", setBeanCatalog],
-      ["packagingInv", setPackagingInv],
+      ["log", setLog],["schedule", setSchedule],["inventory", setInventory],
+      ["costs", setCosts],["beanCatalog", setBeanCatalog],["packagingInv", setPackagingInv],
     ];
-    // Load initial data then listen for real-time changes
     Promise.all(keys.map(([key])=>db.collection("untamed-roastery").doc(key).get()))
       .then(snaps=>{
         snaps.forEach((snap,i)=>{
-          if(snap.exists && snap.data() && snap.data().value != null){
-            keys[i][1](snap.data().value);
-          }
+          if(snap.exists && snap.data() && snap.data().value != null) keys[i][1](snap.data().value);
         });
         setStorageReady(true);
       }).catch(()=>setStorageReady(true));
-    // Real-time listeners
-    keys.forEach(([key,setter])=>{
-      const unsub = db.collection("untamed-roastery").doc(key).onSnapshot(snap=>{
+    const unsubs = keys.map(([key,setter])=>
+      db.collection("untamed-roastery").doc(key).onSnapshot(snap=>{
         if(snap.exists && snap.data() && snap.data().value != null) setter(snap.data().value);
-      });
-      unsubs.push(unsub);
-    });
+      })
+    );
     return ()=>unsubs.forEach(u=>u());
   },[]);
-
-  function fbSet(key, value){
-    if(!storageReady || !window.__db) return;
-    window.__db.collection("untamed-roastery").doc(key).set({value}).catch(()=>{});
-  }
+  function fbSet(key, value){ if(!storageReady||!window.__db)return; window.__db.collection("untamed-roastery").doc(key).set({value}).catch(()=>{}); }
   useEffect(()=>{ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
   useEffect(()=>{ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
   useEffect(()=>{ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
@@ -1340,7 +1594,7 @@ function RoastCalc(){
       {pickerOpen&&<MachinePicker onSelect={addSlot} onClose={()=>setPickerOpen(false)} existing={slots.map(s=>s.id)}/>}
 
       {/* HEADER */}
-      <div style={{background:C.dark,padding:"16px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`3px solid ${C.red}`,flexWrap:"wrap",gap:12}}>
+      <div style={{background:C.dark,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`3px solid ${C.red}`,flexWrap:"wrap",gap:8}}>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
           <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABQAFADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAUHBAYBAgMI/8QAKxAAAgEEAQQBAgYDAAAAAAAAAQIDAAQFESEGEhMxIhRBFTJRYXGRByPB/8QAGgEBAAIDAQAAAAAAAAAAAAAAAAMFAgQGAf/EACkRAAICAQMCBQQDAAAAAAAAAAABAhEDEiExBFEFFEFhoRMWMpGBsdH/2gAMAwEAAhEDEQA/APqOlKVUm6KUpQClKUApSlAKUpQClKUApSozqvJyYXpu/wArFEkz2sJkVHJCsdjgkfzXjaStmWOEsk1CPL2MNOs+l3tLm6XNW3htpRFM3y+LEkDjWyDo6I44rlusumFtrW5OZtvFdyGOFvl8mB0eNbABIGzxVBZWWa7upvpcMuOW7kDNGjN2b3sAF+FGzvVc4meWzu4GucMmRWzkJRHZuze9kErww3zr/lVnnp3VL5Oy+2cGnVqd9rjfH65+D6apUb0vknzHTuPyskSRPdwLKyISQpP2BNSVWadq0cbODxycJcrYUpSvTEUpSgFYOfyNvicLd5O6ieWC2jMjogBLDY4G+PvWZI6xxtI50qgsTrfAGzUBkM/0tfWS2V9dxSW19EukkjcLKrKWUb0PYUkD3xWE5JLncnwYnOaeltJ712KDyl7YqL+1xL3ws7yZZDHcldr2kkeie47Ot8cfzXbE39ixx8GWa+azsZWdY7Yr8u5gx9kdp2NE88Vc+Nm/xzjme6srfHW7QoJTKbR9qD6ILL/WueD+le+bh6AuL6VcpaYuS7V4kceE+RmlG012jbdw3yN1WeVfOpHZPxuP4PBOu/rxX9NK7NgwWQgyuHtMlbRNFDcxCREYAFQfsdcVm1rlh1H0rY4+2t7S7W3tEi3CPBKEWMaPdsr+UbHPrmtjBBAIIII2CPvVnCSa5s4zPilCTelpNurFKUrMhFKUoDBz9/Bi8Nc39zHJJDEn+xY9dxBIXjZA+9V9bJ0zdY8RXH4tdWVuiW1w8qRFII274YtlfzAHbB039iTVj5KytsjYy2V5GZIJQA69xXeiD7HPsCoxuk+ny8rfh4HlJMqrK4V9t3aIB0QGJIHoE8VBlxyk9qosuj6rDhxtStNv07f7z8GpXl503JC91LdZOSDzxWbwnsRW8ELCNi+xoMrlhyO46H7ViyxYSzRfqbPNee1ntYEvJktw8RVFaNCe7QDKqE7/AEPI5rd26T6fIcCw7A8axOEmdQ6BSuiAdH4kg7975r3m6exMpctbOpeaOc9kzpp417EI0eNLwNVH9Gb5o2l4jgjstVfx7e/b97WV5GcHbK9gZc9FHZQS286CO3HjifxpKz9vK8Mu3PJ0deqszDzxXGLtpoIZIYWjAiR/YQcKfZ4IAI/Yio9OlMCiSKtiR5EkRz55NssgCuCe7ZBCj+t+6mYY0hhSKMEIihVBO9ADQ5NSYscoPc1eu6vHnitN37nalKVOVopSlAKUpQClKUApSlAKUpQH/9k=" alt="Untamed Roastery" style={{width:52,height:52,borderRadius:8,objectFit:"contain"}}/>
           <div>
@@ -1348,9 +1602,9 @@ function RoastCalc(){
             <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif"}}>Roast Calculator</div>
           </div>
         </div>
-        <div style={{display:"flex",background:"rgba(255,255,255,0.08)",borderRadius:12,padding:4,gap:4}}>
+        <div style={{display:"flex",background:"rgba(255,255,255,0.08)",borderRadius:12,padding:4,gap:3,flexWrap:"wrap"}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"8px 18px",borderRadius:9,border:"none",cursor:"pointer",background:activeTab===t.id?C.red:"transparent",color:activeTab===t.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:12,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
+            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"7px 10px",borderRadius:9,border:"none",cursor:"pointer",background:activeTab===t.id?C.red:"transparent",color:activeTab===t.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:11,fontWeight:activeTab===t.id?700:400,whiteSpace:"nowrap"}}>{t.label}</button>
           ))}
         </div>
         <div style={{textAlign:"right",color:C.mocha,fontSize:11}}>
@@ -1361,7 +1615,30 @@ function RoastCalc(){
 
       {/* ── CALCULATOR TAB ── */}
       {activeTab==="calc"&&(
-        <div style={{maxWidth:880,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{maxWidth:880,margin:"0 auto",padding:"20px 14px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
+          {/* ── CALC MODE TOGGLE: Single vs Multi-track ── */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+            {[
+              {id:"single",icon:"⚙️",label:"Single Order",hint:"One bean, one or more machines"},
+              {id:"multi", icon:"⚡",label:"Multi-Track",hint:"Multiple beans & machines at once"},
+            ].map(cm=>(
+              <button key={cm.id} onClick={()=>setCalcMode(cm.id)}
+                style={{padding:"12px 14px",borderRadius:12,border:`2px solid ${calcMode===cm.id?C.red:C.tan}`,cursor:"pointer",background:calcMode===cm.id?`${C.red}12`:"rgba(255,255,255,0.7)",textAlign:"left",transition:"all 0.2s"}}>
+                <div style={{fontSize:16,marginBottom:3}}>{cm.icon}</div>
+                <div style={{fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,color:calcMode===cm.id?C.red:C.espresso}}>{cm.label}</div>
+                <div style={{fontSize:11,color:C.mocha,marginTop:2}}>{cm.hint}</div>
+              </button>
+            ))}
+          </div>
+
+          {calcMode==="multi"&&(
+            <MultiTrackSession inventory={inventory} onSaveSession={entries=>{
+              setLog(p=>[...entries,...p]);
+              setActiveTab("log");
+            }}/>
+          )}
+
+          {calcMode==="single"&&(<>
           {/* ── ORDER MODE TOGGLE ── */}
           <div style={{display:"flex",background:"rgba(255,255,255,0.7)",borderRadius:12,padding:4,gap:4,marginBottom:20,border:`1.5px solid ${C.tan}`,width:"fit-content"}}>
             {[{id:"units",label:"📦 By Unit Count",hint:"e.g. 4000 drip bags"},{id:"weight",label:"⚖️ By Weight",hint:"e.g. 5kg roasted"}].map(m=>(
@@ -1371,7 +1648,7 @@ function RoastCalc(){
             ))}
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:18}}>
             <div>
               <SL>Client / Order</SL>
               <input className="inp" value={client} onChange={e=>setClient(e.target.value)} placeholder="e.g. KNDZ, Wedding, Retail batch…"/>
@@ -1386,7 +1663,7 @@ function RoastCalc(){
                       {FORMATS.map(f=><button key={f.id} onClick={()=>{
                         setFormat(f.id);
                         setGramsPerUnit(f.id==="whole"?250:15);
-                      }} style={{padding:"0 10px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
+                      }} style={{padding:"0 7px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
                     </div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,background:"rgba(255,255,255,0.6)",border:`1px solid ${C.tan}`,borderRadius:10,padding:"7px 12px"}}>
@@ -1394,9 +1671,9 @@ function RoastCalc(){
                     <input type="number" min="1" step="1" value={gramsPerUnit} onChange={e=>setGramsPerUnit(parseFloat(e.target.value)||15)}
                       style={{width:60,border:`1.5px solid ${C.red}`,borderRadius:8,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:C.red,background:C.cream,textAlign:"center",outline:"none"}}/>
                     <span style={{fontSize:11,color:C.mocha}}>g</span>
-                    <div style={{display:"flex",gap:4,marginLeft:4}}>
-                      {[{label:"Untamed drip/steep",g:15},{label:"Untamed whole",g:250}].map(p=>(
-                        <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?`${C.red}20`:"transparent",border:`1px solid ${gramsPerUnit===p.g?C.red:C.tan}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
+                    <div style={{display:"flex",gap:4,marginLeft:4,flexWrap:"wrap"}}>
+                      {[{label:"drip/steep",g:15},{label:"whole",g:250}].map(p=>(
+                        <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?`${C.red}20`:"transparent",border:`1px solid ${gramsPerUnit===p.g?C.red:C.tan}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
                       ))}
                     </div>
                     {unitCount&&gramsPerUnit&&<span style={{marginLeft:"auto",fontSize:11,color:C.espresso,fontWeight:700,whiteSpace:"nowrap"}}>= {fmtW(parseFloat(unitCount)*gramsPerUnit)} roasted</span>}
@@ -1471,7 +1748,7 @@ function RoastCalc(){
             </div>
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1.6fr",gap:18,marginBottom:24}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:18}}>
             <div>
               {orderMode==="weight"&&(
                 <>
@@ -1523,7 +1800,7 @@ function RoastCalc(){
             {hasCustom&&(
               <div style={{background:`${C.peach}30`,border:`1.5px solid ${C.peach}`,borderRadius:12,padding:14,marginBottom:12}}>
                 <SL>Custom Machine Specs</SL>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
                   {[{k:"name",ph:"Machine name"},{k:"type",ph:"Fuel type"},{k:"capacity",ph:"Max capacity (g)"},{k:"roastTime",ph:"Medium roast time (min)"},{k:"coolTime",ph:"Cooling time (min)"}].map(f=>(
                     <input key={f.k} className="inp" placeholder={f.ph} value={customFields[f.k]} onChange={e=>setCustomFields(p=>({...p,[f.k]:e.target.value}))} style={{fontSize:12,padding:"8px 12px"}}/>
                   ))}
@@ -1574,7 +1851,7 @@ function RoastCalc(){
 
           {canCompute&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:22}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:18}}>
                 {[
                   {label:"Rounds",value:rounds,sub:`${fmtW(Math.round(roastedCapPerRound))}/round`,icon:"🔁"},
                   {label:"Total Time",value:fmtT(totalTime),sub:`${fmtT(totalRoastT)} + ${fmtT(totalCoolT)} cool`,icon:"⏱"},
@@ -1657,7 +1934,7 @@ function RoastCalc(){
                       </div>
                     </div>
                     {/* Mini summary */}
-                    <div style={{display:"flex",gap:8,marginTop:14,padding:"10px 14px",background:C.espresso,borderRadius:10,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+                    <div style={{display:"flex",gap:8,marginTop:14,padding:"10px 12px",background:C.espresso,borderRadius:10,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",overflowX:"hidden"}}>
                       {[{l:"Green",v:`$${greenCost.toFixed(2)}`},{l:"Packaging",v:`$${packagingCost.toFixed(2)}`},{l:"Labour",v:`$${labourCost.toFixed(2)}`}].map(s=>(
                         <div key={s.l} style={{textAlign:"center"}}>
                           <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>{s.l}</div>
@@ -1726,14 +2003,15 @@ function RoastCalc(){
               <div style={{fontSize:14,fontStyle:"italic"}}>Enter an order amount to begin calculating</div>
             </div>
           )}
+          </>)}
         </div>
       )}
 
       {/* ── LOG TAB ── */}
       {activeTab==="log"&&(
-        <div style={{maxWidth:980,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{maxWidth:980,margin:"0 auto",padding:"20px 16px"}}>
           {log.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:20}}>
               {[
                 {label:"Total Orders",value:totalOrders,icon:"📦",color:C.red},
                 {label:"Total Roasted",value:`${totalKgRoasted.toFixed(1)}kg`,icon:"☕",color:C.espresso},
@@ -1757,10 +2035,8 @@ function RoastCalc(){
             {log.length>0&&<button onClick={exportCSV} style={{background:C.espresso,border:"none",color:C.cream,borderRadius:10,padding:"9px 18px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,whiteSpace:"nowrap"}}>↓ Export CSV</button>}
           </div>
           {filteredLog.length>0&&(
-            <div style={{display:"flex",gap:0,padding:"8px 16px",fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:4}}>
-              <div style={{flex:"0 0 130px"}}>Client</div><div style={{flex:"0 0 160px"}}>Machines</div><div style={{flex:"0 0 100px"}}>Amount</div>
-              <div style={{flex:"0 0 70px",textAlign:"center"}}>Rounds</div><div style={{flex:"0 0 70px",textAlign:"center"}}>Time</div>
-              <div style={{flex:1,textAlign:"center"}}>Status</div><div style={{flex:"0 0 90px",textAlign:"right"}}>Margin</div><div style={{flex:"0 0 28px"}}></div>
+            <div style={{display:"none"}}>
+              <div style={{flex:"0 0 130px"}}>Client</div>
             </div>
           )}
           {filteredLog.length>0
@@ -1789,14 +2065,9 @@ function RoastCalc(){
 }
 
   </script>
-
-  <!-- Execute AFTER app-source is in DOM -->
   <script>
     var appScript = document.getElementById('app-source').textContent;
-    var transformed = Babel.transform(appScript, {
-      presets: ['react'],
-      sourceType: 'script'
-    }).code;
+    var transformed = Babel.transform(appScript, {presets:['react'],sourceType:'script'}).code;
     var useState = React.useState;
     var useEffect = React.useEffect;
     eval(transformed);
