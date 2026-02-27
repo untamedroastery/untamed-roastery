@@ -22,7 +22,6 @@
     window.__db = firebase.firestore();
   </script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{overflow-x:hidden;max-width:100vw;background:#F0E4CC}
@@ -31,6 +30,46 @@
     .sdot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
     .sdot.pulse{background:#d97706;animation:blink 1s infinite}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    
+      .bl-page { padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 60px; box-sizing: border-box; }
+      .bl-card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(12,12,12,0.07); }
+      .bl-card-title { font-family: Georgia, serif; font-size: 12px; color: #D95035; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+      .bl-inp { width: 100%; background: #F0E4CC; border: 1.5px solid #D1BA9B; border-radius: 10px; padding: 11px 14px; font-size: 15px; color: #0C0C0C; font-family: Georgia, serif; box-sizing: border-box; transition: border-color 0.2s; }
+      .bl-inp:focus { border-color: #D95035; outline: none; }
+      .bl-inp::placeholder { color: #997C6F; opacity: 0.7; }
+      textarea.bl-inp { resize: none; line-height: 1.5; }
+      select.bl-inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23997C6F' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-color: #F0E4CC; padding-right: 36px; }
+      .bl-field { margin-bottom: 13px; }
+      .bl-field-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-bottom: 6px; display: block; font-family: Georgia, serif; }
+      .bl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
+      .bl-level-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+      .bl-level-btn { padding: 10px 6px; border-radius: 10px; border: 1.5px solid #D1BA9B; background: none; color: #997C6F; font-size: 11px; letter-spacing: 0.5px; cursor: pointer; text-align: center; transition: all 0.15s; font-family: Georgia, serif; }
+      .bl-level-btn.on { background: #47322F; color: #F0E4CC; border-color: #47322F; font-weight: 700; }
+      .bl-stars { display: flex; gap: 6px; margin-top: 4px; }
+      .bl-star { width: 36px; height: 36px; background: none; border: 1.5px solid #D1BA9B; border-radius: 8px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; color: #D1BA9B; }
+      .bl-star.lit { background: #D95035; border-color: #D95035; color: white; }
+      .bl-tag-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
+      .bl-tag { padding: 6px 12px; border-radius: 20px; border: 1.5px solid #D1BA9B; font-size: 12px; color: #997C6F; background: none; cursor: pointer; transition: all 0.15s; font-family: Georgia, serif; }
+      .bl-tag.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
+      .bl-save-btn { width: 100%; background: #D95035; color: white; border: none; border-radius: 12px; padding: 16px; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: opacity 0.2s; font-family: Georgia, serif; }
+      .bl-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .bl-stats-bar { background: #47322F; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+      .bl-stat { text-align: center; }
+      .bl-stat-val { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: #F0E4CC; }
+      .bl-stat-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-top: 2px; }
+      .bl-filter-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+      .bl-filter-row::-webkit-scrollbar { display: none; }
+      .bl-filter-chip { white-space: nowrap; padding: 7px 14px; border-radius: 20px; border: 1.5px solid #D1BA9B; background: none; font-size: 12px; color: #997C6F; cursor: pointer; font-family: Georgia, serif; }
+      .bl-filter-chip.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
+      .bl-export-btn { width: 100%; background: #47322F; color: #F0E4CC; border: none; border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; margin-bottom: 14px; font-family: Georgia, serif; }
+      .bl-batch-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(12,12,12,0.06); border-left: 4px solid #D95035; cursor: pointer; }
+      .bl-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #47322F; color: #F0E4CC; padding: 12px 24px; border-radius: 40px; font-size: 13px; font-weight: 700; letter-spacing: 1px; z-index: 9998; box-shadow: 0 4px 20px rgba(0,0,0,0.3); white-space: nowrap; font-family: Georgia, serif; }
+      .bl-sub-nav { background: #F0E4CC; display: flex; border-bottom: 2px solid #D1BA9B; position: sticky; top: 45px; z-index: 180; }
+      .bl-sub-nav-btn { flex: 1; padding: 13px 8px; background: none; border: none; color: #997C6F; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: Georgia, serif; }
+      .bl-sub-nav-btn.active { color: #D95035; border-bottom-color: #D95035; font-weight: 700; }
+      .bl-loss-box { background: #F0E4CC; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+      input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
   </style>
 </head>
 <body>
@@ -2052,17 +2091,232 @@ function RoastCalc(){
   );
 }
 
+// ═══════════════════════════════════════════════════════════════
+// UNIVERSAL ROASTIME CSV PARSER
+// Works with Roastime, Cropster, Artisan, Ikawa, or any CSV
+// ═══════════════════════════════════════════════════════════════
+
+function parseRoastCSV(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim());
+  const result = {
+    beanName: '', roastDate: '', roastLevel: '',
+    chargeTemp: null, dropTemp: null,
+    firstCrackTime: null, totalTime: null,
+    yellowingTime: null, dtr: null, devTime: null,
+    greenWeight: null, roastedWeight: null,
+    source: 'unknown', warnings: [], rawHeaders: [], timelineRows: 0,
+  };
+
+  // ── Helper: parse time string "11:37" → minutes float
+  function timeToMin(t) {
+    if (!t || t === '-') return null;
+    const parts = String(t).split(':');
+    if (parts.length === 2) return parseInt(parts[0]) + parseInt(parts[1]) / 60;
+    if (parts.length === 3) return parseInt(parts[0]) * 60 + parseInt(parts[1]) + parseInt(parts[2]) / 60;
+    return null;
+  }
+  function minToTime(m) {
+    if (m == null) return null;
+    const mm = Math.floor(m), ss = Math.round((m - mm) * 60);
+    return `${mm}:${String(ss).padStart(2, '0')}`;
+  }
+
+  // ── STRATEGY 1: Roastime format detection
+  // Roastime has a metadata block at top, then "Timeline," header row
+  const hasRoastimeTimeline = lines.some(l => l.startsWith('Timeline,'));
+  if (hasRoastimeTimeline) {
+    result.source = 'Roastime';
+    // Bean name is on line 2 (index 2)
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      if (i === 2 && cols[0] && cols[0] !== 'c1') result.beanName = cols[0];
+      if (i === 3 && cols[0]) {
+        // Date: "21/02/2026" → "2026-02-21"
+        const dm = cols[0].match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (dm) result.roastDate = `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+        const md = cols[0].match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+        if (md) result.roastDate = `${md[1]}-${md[2].padStart(2,'0')}-${md[3].padStart(2,'0')}`;
+      }
+    }
+
+    // Parse milestones: 1st Crack start time
+    let inMilestones = false;
+    for (let i = 0; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      if (cols[0] === 'Milestones') { inMilestones = true; continue; }
+      if (cols[0] === 'Timeline') { inMilestones = false; break; }
+      if (inMilestones) {
+        if (cols[0] === '1st Crack' || cols[0] === '1st crack') {
+          // Next line after header has: ,index,time,,index,time
+          const dataLine = lines[i + 2] ? lines[i + 2].split(',').map(c => c.trim()) : [];
+          if (dataLine[2] && dataLine[2] !== '-') result.firstCrackTime = dataLine[2];
+          if (dataLine[5] && dataLine[5] !== '-') result._fcEnd = dataLine[5];
+        }
+        if (cols[0] === 'Yellowing') {
+          const dataLine = lines[i + 1] ? lines[i + 1].split(',').map(c => c.trim()) : [];
+          if (dataLine[2] && dataLine[2] !== '-') result.yellowingTime = dataLine[2];
+        }
+      }
+    }
+
+    // Parse timeline for charge temp, drop temp, total time
+    let timelineStartIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('Timeline,')) { timelineStartIdx = i + 1; break; }
+    }
+    if (timelineStartIdx > -1) {
+      const timelineData = [];
+      for (let i = timelineStartIdx; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim());
+        if (cols[1] && /^\d+$/.test(cols[1])) {
+          timelineData.push({
+            idx: parseInt(cols[1]), time: cols[2],
+            ibts: parseFloat(cols[3]) || null,
+            bean: parseFloat(cols[4]) || null,
+          });
+        }
+      }
+      result.timelineRows = timelineData.length;
+      if (timelineData.length > 0) {
+        // Charge temp = IBTS at index 0
+        result.chargeTemp = timelineData[0].ibts ? Math.round(timelineData[0].ibts) : null;
+        // Drop temp = bean probe at last row
+        const last = timelineData[timelineData.length - 1];
+        result.dropTemp = last.bean ? Math.round(last.bean) : null;
+        result.totalTime = last.time;
+        // DTR calculation
+        const fcMin = timeToMin(result.firstCrackTime);
+        const totalMin = timeToMin(result.totalTime);
+        if (fcMin && totalMin && totalMin > fcMin) {
+          result.devTime = minToTime(totalMin - fcMin);
+          result.dtr = Math.round(((totalMin - fcMin) / totalMin) * 100);
+        }
+      }
+    }
+    return result;
+  }
+
+  // ── STRATEGY 2: Generic CSV with header row detection
+  // Find the header row by looking for known column name patterns
+  const tempKeywords = ['temp', 'temperature', 'bt', 'et', 'bean', 'ibts', 'drum'];
+  const timeKeywords = ['time', 'elapsed', 'timestamp', 'clock'];
+  const rorKeywords = ['ror', 'rate', 'delta', 'ror'];
+
+  let headerRowIdx = -1;
+  let colMap = {};
+
+  for (let i = 0; i < Math.min(30, lines.length); i++) {
+    const cols = lines[i].split(',').map(c => c.trim().toLowerCase());
+    const hasTemp = cols.some(c => tempKeywords.some(k => c.includes(k)));
+    const hasTime = cols.some(c => timeKeywords.some(k => c.includes(k)));
+    if (hasTemp && hasTime) {
+      headerRowIdx = i;
+      result.rawHeaders = lines[i].split(',').map(c => c.trim());
+      // Map columns
+      cols.forEach((col, idx) => {
+        if (timeKeywords.some(k => col.includes(k)) && !colMap.time) colMap.time = idx;
+        if ((col.includes('bt') || col.includes('bean') || col.includes('probe')) && !colMap.beanTemp) colMap.beanTemp = idx;
+        if ((col.includes('et') || col.includes('ibts') || col.includes('drum') || col.includes('env')) && !colMap.ibts) colMap.ibts = idx;
+        if (col.includes('ror') && !colMap.ror) colMap.ror = idx;
+      });
+      result.source = 'Generic CSV';
+      break;
+    }
+  }
+
+  if (headerRowIdx > -1) {
+    // Scan pre-header lines for metadata
+    for (let i = 0; i < headerRowIdx; i++) {
+      const raw = lines[i];
+      const cols = raw.split(',').map(c => c.trim());
+      // Look for date patterns
+      const dateMatch = raw.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})|(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
+      if (dateMatch && !result.roastDate) {
+        const dm = raw.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        const md = raw.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+        if (md) result.roastDate = `${md[1]}-${md[2].padStart(2,'0')}-${md[3].padStart(2,'0')}`;
+        else if (dm) result.roastDate = `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+      }
+      // Look for roast name / bean name (non-numeric, non-empty, not a header keyword)
+      if (cols[0] && cols[0].length > 3 && !/^[\d\-\/,]+$/.test(cols[0]) && !result.beanName) {
+        const skip = ['date','time','roast','batch','profile','name','bean','origin'];
+        if (!skip.some(s => cols[0].toLowerCase() === s)) {
+          result.beanName = cols[0];
+        }
+      }
+      // Cropster: look for "Bean: Ethiopia Yirgacheffe" style
+      if (raw.toLowerCase().includes('bean:')) {
+        const m = raw.match(/bean:\s*(.+)/i);
+        if (m) result.beanName = m[1].split(',')[0].trim();
+      }
+      // Look for first crack keyword in metadata
+      if (raw.toLowerCase().includes('first crack') || raw.toLowerCase().includes('1st crack')) {
+        const timeMatch = raw.match(/(\d{1,2}:\d{2})/);
+        if (timeMatch && !result.firstCrackTime) result.firstCrackTime = timeMatch[1];
+      }
+      // Green / roasted weight
+      const greenMatch = raw.match(/green[^:]*:\s*([\d.]+)\s*(g|kg)?/i);
+      if (greenMatch) result.greenWeight = parseFloat(greenMatch[1]) * (greenMatch[2] === 'kg' ? 1000 : 1);
+      const roastedMatch = raw.match(/roast[^:]*weight[^:]*:\s*([\d.]+)\s*(g|kg)?/i);
+      if (roastedMatch) result.roastedWeight = parseFloat(roastedMatch[1]) * (roastedMatch[2] === 'kg' ? 1000 : 1);
+    }
+
+    // Parse data rows
+    const dataRows = [];
+    for (let i = headerRowIdx + 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      if (cols.length < 2) continue;
+      const timeVal = colMap.time != null ? cols[colMap.time] : null;
+      const beanVal = colMap.beanTemp != null ? parseFloat(cols[colMap.beanTemp]) : null;
+      const ibtsVal = colMap.ibts != null ? parseFloat(cols[colMap.ibts]) : null;
+      if (timeVal || beanVal) dataRows.push({ time: timeVal, bean: beanVal, ibts: ibtsVal });
+    }
+
+    result.timelineRows = dataRows.length;
+    if (dataRows.length > 0) {
+      const first = dataRows[0];
+      const last = dataRows[dataRows.length - 1];
+      if (!result.chargeTemp) result.chargeTemp = first.ibts ? Math.round(first.ibts) : (first.bean ? Math.round(first.bean) : null);
+      if (!result.dropTemp) result.dropTemp = last.bean ? Math.round(last.bean) : (last.ibts ? Math.round(last.ibts) : null);
+      if (!result.totalTime) result.totalTime = last.time;
+      // DTR
+      const fcMin = timeToMin(result.firstCrackTime);
+      const totalMin = timeToMin(result.totalTime);
+      if (fcMin && totalMin && totalMin > fcMin) {
+        result.devTime = minToTime(totalMin - fcMin);
+        result.dtr = Math.round(((totalMin - fcMin) / totalMin) * 100);
+      }
+    }
+    return result;
+  }
+
+  // ── STRATEGY 3: Last resort — scan everything for patterns
+  result.source = 'Unknown (partial parse)';
+  result.warnings.push('Could not detect standard format — extracted what was possible');
+  for (const line of lines) {
+    const dateMatch = line.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
+    if (dateMatch && !result.roastDate) result.roastDate = dateMatch[1].replace(/\//g, '-');
+    const timeMatch = line.match(/(\d{1,2}:\d{2}:\d{2})/);
+    if (timeMatch && !result.totalTime) result.totalTime = timeMatch[1];
+    if ((line.toLowerCase().includes('first crack') || line.toLowerCase().includes('1st crack')) && !result.firstCrackTime) {
+      const t = line.match(/(\d{1,2}:\d{2})/);
+      if (t) result.firstCrackTime = t[1];
+    }
+  }
+  return result;
+}
 
 // ═══════════════════════════════════════════════════════════════
-// BATCH LOGGER
+// BATCH LOGGER COMPONENT
 // ═══════════════════════════════════════════════════════════════
+
 const BL_ROAST_LEVELS = [
-  { id:'light',        label:'Light',        emoji:'🌕' },
-  { id:'medium-light', label:'Med Light',    emoji:'🟡' },
-  { id:'medium',       label:'Medium',       emoji:'🟠' },
-  { id:'medium-dark',  label:'Med Dark',     emoji:'🔶' },
-  { id:'dark',         label:'Dark',         emoji:'🟤' },
-  { id:'espresso',     label:'Espresso',     emoji:'⚫' },
+  { id:'light',        label:'Light',     emoji:'🌕', loss:0.13 },
+  { id:'medium-light', label:'Med Light', emoji:'🟡', loss:0.15 },
+  { id:'medium',       label:'Medium',    emoji:'🟠', loss:0.16 },
+  { id:'medium-dark',  label:'Med Dark',  emoji:'🔶', loss:0.18 },
+  { id:'dark',         label:'Dark',      emoji:'🟤', loss:0.20 },
+  { id:'espresso',     label:'Espresso',  emoji:'⚫', loss:0.22 },
 ];
 const BL_PROCESSES = ['Washed','Natural','Honey','Anaerobic','Wet-Hulled','Other'];
 const BL_FLAVOR_TAGS = [
@@ -2079,56 +2333,13 @@ const BL_MACHINES_LIST = [
 const BL_STORAGE_KEY = 'untamed_batch_log_v3';
 function blLoadBatches() { try { return JSON.parse(localStorage.getItem(BL_STORAGE_KEY)||'[]'); } catch { return []; } }
 function blSaveBatches(b) { try { localStorage.setItem(BL_STORAGE_KEY, JSON.stringify(b)); } catch {} }
-
 function blCalcRoastLoss(green, roasted) {
   if (!green || !roasted || green <= 0 || roasted <= 0) return null;
   return (((green - roasted) / green) * 100).toFixed(1);
 }
-
 const BLC = { cream:'#F0E4CC', red:'#D95035', dark:'#0C0C0C', tan:'#D1BA9B', mocha:'#997C6F', espresso:'#47322F', white:'#FFFFFF', peach:'#E3A88E' };
 
-const blStyles = `
-  .bl-page { padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 60px; box-sizing: border-box; }
-  .bl-card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(12,12,12,0.07); }
-  .bl-card-title { font-family: Georgia, serif; font-size: 12px; color: #D95035; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
-  .bl-inp { width: 100%; background: #F0E4CC; border: 1.5px solid #D1BA9B; border-radius: 10px; padding: 11px 14px; font-size: 15px; color: #0C0C0C; font-family: Georgia, serif; box-sizing: border-box; transition: border-color 0.2s; }
-  .bl-inp:focus { border-color: #D95035; outline: none; }
-  .bl-inp::placeholder { color: #997C6F; opacity: 0.7; }
-  textarea.bl-inp { resize: none; line-height: 1.5; }
-  select.bl-inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23997C6F' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-color: #F0E4CC; padding-right: 36px; }
-  .bl-field { margin-bottom: 13px; }
-  .bl-field-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-bottom: 6px; display: block; font-family: Georgia, serif; }
-  .bl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
-  .bl-level-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-  .bl-level-btn { padding: 10px 6px; border-radius: 10px; border: 1.5px solid #D1BA9B; background: none; color: #997C6F; font-size: 11px; letter-spacing: 0.5px; cursor: pointer; text-align: center; transition: all 0.15s; font-family: Georgia, serif; }
-  .bl-level-btn.on { background: #47322F; color: #F0E4CC; border-color: #47322F; font-weight: 700; }
-  .bl-stars { display: flex; gap: 6px; margin-top: 4px; }
-  .bl-star { width: 36px; height: 36px; background: none; border: 1.5px solid #D1BA9B; border-radius: 8px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; color: #D1BA9B; }
-  .bl-star.lit { background: #D95035; border-color: #D95035; color: white; }
-  .bl-tag-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
-  .bl-tag { padding: 6px 12px; border-radius: 20px; border: 1.5px solid #D1BA9B; font-size: 12px; color: #997C6F; background: none; cursor: pointer; transition: all 0.15s; font-family: Georgia, serif; }
-  .bl-tag.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
-  .bl-save-btn { width: 100%; background: #D95035; color: white; border: none; border-radius: 12px; padding: 16px; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: opacity 0.2s; font-family: Georgia, serif; }
-  .bl-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .bl-save-btn:active { opacity: 0.8; }
-  .bl-stats-bar { background: #47322F; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-  .bl-stat { text-align: center; }
-  .bl-stat-val { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: #F0E4CC; }
-  .bl-stat-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-top: 2px; }
-  .bl-filter-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
-  .bl-filter-row::-webkit-scrollbar { display: none; }
-  .bl-filter-chip { white-space: nowrap; padding: 7px 14px; border-radius: 20px; border: 1.5px solid #D1BA9B; background: none; font-size: 12px; color: #997C6F; cursor: pointer; font-family: Georgia, serif; }
-  .bl-filter-chip.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
-  .bl-export-btn { width: 100%; background: #47322F; color: #F0E4CC; border: none; border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; margin-bottom: 14px; font-family: Georgia, serif; }
-  .bl-batch-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(12,12,12,0.06); border-left: 4px solid #D95035; cursor: pointer; }
-  .bl-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #47322F; color: #F0E4CC; padding: 12px 24px; border-radius: 40px; font-size: 13px; font-weight: 700; letter-spacing: 1px; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.3); white-space: nowrap; font-family: Georgia, serif; }
-  .bl-sub-nav { background: #F0E4CC; display: flex; border-bottom: 2px solid #D1BA9B; position: sticky; top: 0; z-index: 180; }
-  .bl-sub-nav-btn { flex: 1; padding: 13px 8px; background: none; border: none; color: #997C6F; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: Georgia, serif; }
-  .bl-sub-nav-btn.active { color: #D95035; border-bottom-color: #D95035; font-weight: 700; }
-  .bl-loss-box { background: #F0E4CC; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
-  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-`;
-
+// ── Star Rating
 function BlStarRating({ value, onChange }) {
   return (
     <div className="bl-stars">
@@ -2141,46 +2352,312 @@ function BlStarRating({ value, onChange }) {
   );
 }
 
-function BlLogForm({ onSave }) {
-  const today = new Date().toISOString().split('T')[0];
-  const [bean, setBean]             = useState('');
+// ── CSV Import Preview Modal
+function BlImportModal({ parsed, onConfirm, onCancel }) {
+  const [bean, setBean]             = useState(parsed.beanName || '');
+  const [roastDate, setRoastDate]   = useState(parsed.roastDate || new Date().toISOString().split('T')[0]);
+  const [roastLevel, setRoastLevel] = useState(parsed.roastLevel || 'medium');
+  const [chargeTemp, setChargeTemp] = useState(parsed.chargeTemp ? String(parsed.chargeTemp) : '');
+  const [dropTemp, setDropTemp]     = useState(parsed.dropTemp ? String(parsed.dropTemp) : '');
+  const [firstCrack, setFirstCrack] = useState(parsed.firstCrackTime || '');
+  const [totalTime, setTotalTime]   = useState(parsed.totalTime || '');
+  const [devTime, setDevTime]       = useState(parsed.devTime || '');
+  const [dtr, setDtr]               = useState(parsed.dtr ? String(parsed.dtr) : '');
+  const [greenW, setGreenW]         = useState(parsed.greenWeight ? String(parsed.greenWeight) : '');
+  const [roastedW, setRoastedW]     = useState(parsed.roastedWeight ? String(parsed.roastedWeight) : '');
+  const [machine, setMachine]       = useState('');
   const [origin, setOrigin]         = useState('');
   const [process, setProcess]       = useState('');
-  const [roastLevel, setRoastLevel] = useState('');
-  const [machine, setMachine]       = useState('');
-  const [roastDate, setRoastDate]   = useState(today);
-  const [greenW, setGreenW]         = useState('');
-  const [roastedW, setRoastedW]     = useState('');
-  const [dropTemp, setDropTemp]     = useState('');
-  const [firstCrack, setFirstCrack] = useState('');
-  const [totalTime, setTotalTime]   = useState('');
-  const [chargeTemp, setChargeTemp] = useState('');
+
+  const roastLoss = blCalcRoastLoss(parseFloat(greenW), parseFloat(roastedW));
+
+  function handleConfirm() {
+    onConfirm({
+      beanName: bean, roastDate, roastLevel, machine, origin, process,
+      chargeTemp: parseFloat(chargeTemp)||null,
+      dropTemp: parseFloat(dropTemp)||null,
+      firstCrackTime: firstCrack,
+      totalTime, devTime,
+      dtr: parseFloat(dtr)||null,
+      greenWeight: parseFloat(greenW)||null,
+      roastedWeight: parseFloat(roastedW)||null,
+      roastLoss: roastLoss ? parseFloat(roastLoss) : null,
+      source: parsed.source,
+      timelineRows: parsed.timelineRows,
+    });
+  }
+
+  const canConfirm = bean.trim() && roastLevel;
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(12,12,12,0.7)',zIndex:600,display:'flex',alignItems:'flex-end',backdropFilter:'blur(6px)'}}
+         onClick={e=>e.target===e.currentTarget&&onCancel()}>
+      <div style={{background:BLC.cream,width:'100%',maxHeight:'92vh',overflowY:'auto',borderRadius:'22px 22px 0 0',padding:'0 0 40px'}}>
+        {/* Header */}
+        <div style={{background:BLC.espresso,padding:'18px 20px 14px',borderRadius:'22px 22px 0 0',marginBottom:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+            <div>
+              <div style={{fontSize:10,letterSpacing:3,color:BLC.mocha,textTransform:'uppercase',marginBottom:4}}>File imported</div>
+              <div style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700,color:BLC.cream}}>Confirm Roast Data</div>
+            </div>
+            <button onClick={onCancel} style={{background:'rgba(255,255,255,0.12)',border:'none',borderRadius:10,width:34,height:34,cursor:'pointer',color:BLC.cream,fontSize:16}}>✕</button>
+          </div>
+          {/* Source badge + stats */}
+          <div style={{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}}>
+            <span style={{background:'rgba(217,80,53,0.3)',color:BLC.peach,border:'1px solid rgba(217,80,53,0.4)',borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700}}>{parsed.source}</span>
+            {parsed.timelineRows > 0 && <span style={{background:'rgba(255,255,255,0.1)',color:BLC.tan,borderRadius:20,padding:'3px 10px',fontSize:11}}>{parsed.timelineRows} data points captured</span>}
+            {parsed.warnings?.length > 0 && <span style={{background:'rgba(251,191,36,0.2)',color:'#fbbf24',borderRadius:20,padding:'3px 10px',fontSize:11}}>⚠ {parsed.warnings[0]}</span>}
+          </div>
+        </div>
+
+        <div style={{padding:'0 16px'}}>
+          {/* Auto-detected fields */}
+          <div style={{fontSize:10,letterSpacing:2,color:BLC.mocha,textTransform:'uppercase',marginBottom:10}}>✓ Auto-detected — confirm or edit</div>
+
+          <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14}}>
+            <div className="bl-field">
+              <label className="bl-field-label">Bean Name *</label>
+              <input className="bl-inp" value={bean} onChange={e=>setBean(e.target.value)} placeholder="e.g. Ethiopia Guji G2"/>
+            </div>
+            <div className="bl-field-row">
+              <div className="bl-field">
+                <label className="bl-field-label">Roast Date</label>
+                <input className="bl-inp" type="date" value={roastDate} onChange={e=>setRoastDate(e.target.value)}/>
+              </div>
+              <div className="bl-field">
+                <label className="bl-field-label">Origin / Region</label>
+                <input className="bl-inp" value={origin} onChange={e=>setOrigin(e.target.value)} placeholder="Ethiopia, Kenya…"/>
+              </div>
+            </div>
+          </div>
+
+          {/* Roast metrics */}
+          <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14}}>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.red,textTransform:'uppercase',marginBottom:12}}>Profile Data</div>
+            <div className="bl-field-row">
+              <div className="bl-field"><label className="bl-field-label">Charge Temp (°C)</label><input className="bl-inp" type="number" value={chargeTemp} onChange={e=>setChargeTemp(e.target.value)} placeholder="—"/></div>
+              <div className="bl-field"><label className="bl-field-label">Drop Temp (°C)</label><input className="bl-inp" type="number" value={dropTemp} onChange={e=>setDropTemp(e.target.value)} placeholder="—"/></div>
+              <div className="bl-field"><label className="bl-field-label">1st Crack</label><input className="bl-inp" value={firstCrack} onChange={e=>setFirstCrack(e.target.value)} placeholder="mm:ss"/></div>
+              <div className="bl-field"><label className="bl-field-label">Total Time</label><input className="bl-inp" value={totalTime} onChange={e=>setTotalTime(e.target.value)} placeholder="mm:ss"/></div>
+              <div className="bl-field"><label className="bl-field-label">Dev Time</label><input className="bl-inp" value={devTime} onChange={e=>setDevTime(e.target.value)} placeholder="mm:ss"/></div>
+              <div className="bl-field"><label className="bl-field-label">DTR %</label><input className="bl-inp" type="number" value={dtr} onChange={e=>setDtr(e.target.value)} placeholder="—"/></div>
+            </div>
+          </div>
+
+          {/* Roast level */}
+          <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14}}>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.red,textTransform:'uppercase',marginBottom:12}}>Roast Level *</div>
+            <div className="bl-level-grid">
+              {BL_ROAST_LEVELS.map(r=>(
+                <button key={r.id} className={`bl-level-btn${roastLevel===r.id?' on':''}`} onClick={()=>setRoastLevel(r.id)}>
+                  <div style={{fontSize:20,marginBottom:4}}>{r.emoji}</div>{r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Weights — still manual */}
+          <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14}}>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.red,textTransform:'uppercase',marginBottom:4}}>Weights</div>
+            <div style={{fontSize:11,color:BLC.mocha,fontStyle:'italic',marginBottom:12}}>Add from your scale — not in the file</div>
+            <div className="bl-field-row">
+              <div className="bl-field"><label className="bl-field-label">Green (g)</label><input className="bl-inp" type="number" inputMode="decimal" value={greenW} onChange={e=>setGreenW(e.target.value)} placeholder="e.g. 1000"/></div>
+              <div className="bl-field"><label className="bl-field-label">Roasted (g)</label><input className="bl-inp" type="number" inputMode="decimal" value={roastedW} onChange={e=>setRoastedW(e.target.value)} placeholder="e.g. 840"/></div>
+            </div>
+            {roastLoss !== null && (
+              <div className="bl-loss-box">
+                <span style={{fontSize:11,letterSpacing:2,textTransform:'uppercase',color:BLC.mocha,fontFamily:'Georgia,serif'}}>Roast Loss</span>
+                <span style={{fontFamily:'Georgia,serif',fontSize:22,fontWeight:700,color:BLC.red}}>{roastLoss}%</span>
+              </div>
+            )}
+          </div>
+
+          {/* Machine & process */}
+          <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:20}}>
+            <div className="bl-field-row">
+              <div className="bl-field">
+                <label className="bl-field-label">Machine</label>
+                <select className="bl-inp" value={machine} onChange={e=>setMachine(e.target.value)}>
+                  <option value="">Select…</option>
+                  {BL_MACHINES_LIST.map(m=><option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="bl-field">
+                <label className="bl-field-label">Process</label>
+                <select className="bl-inp" value={process} onChange={e=>setProcess(e.target.value)}>
+                  <option value="">Select…</option>
+                  {BL_PROCESSES.map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button className="bl-save-btn" onClick={handleConfirm} disabled={!canConfirm}
+            style={{opacity:canConfirm?1:0.4}}>
+            Save Batch to Log →
+          </button>
+          <button onClick={onCancel} style={{width:'100%',marginTop:10,background:'none',border:'none',color:BLC.mocha,fontSize:13,fontFamily:'Georgia,serif',cursor:'pointer',padding:'10px'}}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Drop Zone component
+function BlDropZone({ onFileParsed }) {
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const inputRef = React.useRef();
+
+  function processFile(file) {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['csv','txt','xlsx','xls'].includes(ext)) {
+      setError('Please upload a CSV or text file exported from your roasting software.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const parsed = parseRoastCSV(e.target.result);
+        parsed.fileName = file.name;
+        setLoading(false);
+        onFileParsed(parsed);
+      } catch(err) {
+        setLoading(false);
+        setError('Could not read this file. Try exporting as CSV from your roasting software.');
+      }
+    };
+    reader.onerror = () => { setLoading(false); setError('File read error.'); };
+    reader.readAsText(file);
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    processFile(e.dataTransfer.files[0]);
+  }
+
+  return (
+    <div>
+      <div
+        onClick={() => inputRef.current.click()}
+        onDragOver={e=>{e.preventDefault();setDragging(true);}}
+        onDragLeave={()=>setDragging(false)}
+        onDrop={onDrop}
+        style={{
+          border: `2.5px dashed ${dragging ? BLC.red : BLC.tan}`,
+          borderRadius: 16,
+          padding: '36px 20px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          background: dragging ? `${BLC.red}0A` : 'rgba(255,255,255,0.5)',
+          transition: 'all 0.2s',
+          marginBottom: 8,
+        }}>
+        {loading ? (
+          <div>
+            <div style={{fontSize:36,marginBottom:10}}>⏳</div>
+            <div style={{fontFamily:'Georgia,serif',fontSize:14,color:BLC.espresso}}>Reading file…</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{fontSize:40,marginBottom:10}}>📂</div>
+            <div style={{fontFamily:'Georgia,serif',fontSize:15,fontWeight:700,color:BLC.espresso,marginBottom:6}}>
+              {dragging ? 'Drop it!' : 'Drop roast file here'}
+            </div>
+            <div style={{fontSize:12,color:BLC.mocha,lineHeight:1.6}}>
+              or tap to browse<br/>
+              <span style={{fontSize:11,fontStyle:'italic'}}>Roastime · Cropster · Artisan · Ikawa · any CSV</span>
+            </div>
+          </div>
+        )}
+      </div>
+      {error && <div style={{color:'#dc2626',fontSize:12,textAlign:'center',padding:'6px 0',fontFamily:'Georgia,serif'}}>{error}</div>}
+      <input ref={inputRef} type="file" accept=".csv,.txt,.xlsx" style={{display:'none'}} onChange={e=>processFile(e.target.files[0])}/>
+    </div>
+  );
+}
+
+// ── Log Form (manual entry, with optional CSV pre-fill)
+function BlLogForm({ prefill, onSave, onClearPrefill }) {
+  const today = new Date().toISOString().split('T')[0];
+  const p = prefill || {};
+  const [bean, setBean]             = useState(p.beanName || '');
+  const [origin, setOrigin]         = useState(p.origin || '');
+  const [process, setProcess]       = useState(p.process || '');
+  const [roastLevel, setRoastLevel] = useState(p.roastLevel || '');
+  const [machine, setMachine]       = useState(p.machine || '');
+  const [roastDate, setRoastDate]   = useState(p.roastDate || today);
+  const [greenW, setGreenW]         = useState(p.greenWeight ? String(p.greenWeight) : '');
+  const [roastedW, setRoastedW]     = useState(p.roastedWeight ? String(p.roastedWeight) : '');
+  const [dropTemp, setDropTemp]     = useState(p.dropTemp ? String(p.dropTemp) : '');
+  const [firstCrack, setFirstCrack] = useState(p.firstCrackTime || '');
+  const [totalTime, setTotalTime]   = useState(p.totalTime || '');
+  const [chargeTemp, setChargeTemp] = useState(p.chargeTemp ? String(p.chargeTemp) : '');
+  const [devTime, setDevTime]       = useState(p.devTime || '');
+  const [dtr, setDtr]               = useState(p.dtr ? String(p.dtr) : '');
   const [score, setScore]           = useState(0);
   const [flavors, setFlavors]       = useState([]);
   const [notes, setNotes]           = useState('');
   const [batchNum, setBatchNum]     = useState('');
 
-  const toggleFlavor = f => setFlavors(p => p.includes(f) ? p.filter(x=>x!==f) : [...p,f]);
+  // Sync when prefill changes
+  React.useEffect(() => {
+    if (!p || Object.keys(p).length === 0) return;
+    if (p.beanName) setBean(p.beanName);
+    if (p.roastDate) setRoastDate(p.roastDate);
+    if (p.roastLevel) setRoastLevel(p.roastLevel);
+    if (p.chargeTemp) setChargeTemp(String(p.chargeTemp));
+    if (p.dropTemp) setDropTemp(String(p.dropTemp));
+    if (p.firstCrackTime) setFirstCrack(p.firstCrackTime);
+    if (p.totalTime) setTotalTime(p.totalTime);
+    if (p.devTime) setDevTime(p.devTime);
+    if (p.dtr) setDtr(String(p.dtr));
+    if (p.origin) setOrigin(p.origin);
+    if (p.machine) setMachine(p.machine);
+  }, [prefill]);
+
+  const toggleFlavor = f => setFlavors(prev => prev.includes(f) ? prev.filter(x=>x!==f) : [...prev,f]);
   const roastLoss = blCalcRoastLoss(parseFloat(greenW), parseFloat(roastedW));
   const canSave = bean.trim() && roastLevel && roastDate;
+  const hasPrefill = prefill && Object.keys(prefill).length > 0;
 
   function handleSave() {
     if (!canSave) return;
     onSave({
-      id: Date.now(), bean: bean.trim(), origin: origin.trim(), process, roastLevel, machine, roastDate,
+      id: Date.now(), bean: bean.trim(), origin: origin.trim(), process, roastLevel, machine, roastDate, batchNum: batchNum.trim(),
       greenWeight: parseFloat(greenW)||null, roastedWeight: parseFloat(roastedW)||null,
       roastLoss: roastLoss ? parseFloat(roastLoss) : null,
-      dropTemp: parseFloat(dropTemp)||null, firstCrack: firstCrack.trim()||null,
-      totalTime: totalTime.trim()||null, chargeTemp: parseFloat(chargeTemp)||null,
-      score, flavors, notes: notes.trim(), batchNum: batchNum.trim(),
+      dropTemp: parseFloat(dropTemp)||null, firstCrack: firstCrack||null,
+      totalTime: totalTime||null, chargeTemp: parseFloat(chargeTemp)||null,
+      devTime: devTime||null, dtr: parseFloat(dtr)||null,
+      score, flavors, notes: notes.trim(),
+      fromCSV: hasPrefill ? (prefill.source || true) : false,
     });
     setBean(''); setOrigin(''); setProcess(''); setRoastLevel(''); setMachine(''); setRoastDate(today);
     setGreenW(''); setRoastedW(''); setDropTemp(''); setFirstCrack(''); setTotalTime(''); setChargeTemp('');
-    setScore(0); setFlavors([]); setNotes(''); setBatchNum('');
+    setDevTime(''); setDtr(''); setScore(0); setFlavors([]); setNotes(''); setBatchNum('');
+    if (onClearPrefill) onClearPrefill();
   }
 
   return (
     <div className="bl-page">
+      {hasPrefill && (
+        <div style={{background:BLC.espresso,borderRadius:14,padding:'12px 16px',marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.mocha,textTransform:'uppercase',marginBottom:3}}>CSV imported · {prefill.source}</div>
+            <div style={{fontFamily:'Georgia,serif',fontSize:13,color:BLC.cream}}>Profile data auto-filled ✓</div>
+          </div>
+          <button onClick={onClearPrefill} style={{background:'rgba(255,255,255,0.1)',border:'none',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:11,color:BLC.mocha,fontFamily:'Georgia,serif'}}>Clear</button>
+        </div>
+      )}
+
       <div className="bl-card">
         <div className="bl-card-title">Batch Details</div>
         <div className="bl-field-row">
@@ -2192,14 +2669,14 @@ function BlLogForm({ onSave }) {
           <div className="bl-field"><label className="bl-field-label">Origin / Region</label><input className="bl-inp" value={origin} onChange={e=>setOrigin(e.target.value)} placeholder="Country / Region"/></div>
           <div className="bl-field"><label className="bl-field-label">Process</label>
             <select className="bl-inp" value={process} onChange={e=>setProcess(e.target.value)}>
-              <option value="">Select...</option>
+              <option value="">Select…</option>
               {BL_PROCESSES.map(p=><option key={p}>{p}</option>)}
             </select>
           </div>
         </div>
         <div className="bl-field"><label className="bl-field-label">Machine</label>
           <select className="bl-inp" value={machine} onChange={e=>setMachine(e.target.value)}>
-            <option value="">Select...</option>
+            <option value="">Select…</option>
             {BL_MACHINES_LIST.map(m=><option key={m}>{m}</option>)}
           </select>
         </div>
@@ -2217,7 +2694,19 @@ function BlLogForm({ onSave }) {
       </div>
 
       <div className="bl-card">
-        <div className="bl-card-title">Weights</div>
+        <div className="bl-card-title">Roast Profile {hasPrefill && <span style={{color:'#22c55e',fontSize:10,marginLeft:6}}>✓ from file</span>}</div>
+        <div className="bl-field-row">
+          <div className="bl-field"><label className="bl-field-label">Charge Temp (°C)</label><input className="bl-inp" type="number" value={chargeTemp} onChange={e=>setChargeTemp(e.target.value)} placeholder="e.g. 200"/></div>
+          <div className="bl-field"><label className="bl-field-label">Drop Temp (°C)</label><input className="bl-inp" type="number" value={dropTemp} onChange={e=>setDropTemp(e.target.value)} placeholder="e.g. 205"/></div>
+          <div className="bl-field"><label className="bl-field-label">1st Crack</label><input className="bl-inp" value={firstCrack} onChange={e=>setFirstCrack(e.target.value)} placeholder="e.g. 11:37"/></div>
+          <div className="bl-field"><label className="bl-field-label">Total Time</label><input className="bl-inp" value={totalTime} onChange={e=>setTotalTime(e.target.value)} placeholder="e.g. 14:43"/></div>
+          <div className="bl-field"><label className="bl-field-label">Dev Time</label><input className="bl-inp" value={devTime} onChange={e=>setDevTime(e.target.value)} placeholder="e.g. 3:06"/></div>
+          <div className="bl-field"><label className="bl-field-label">DTR %</label><input className="bl-inp" type="number" value={dtr} onChange={e=>setDtr(e.target.value)} placeholder="e.g. 21"/></div>
+        </div>
+      </div>
+
+      <div className="bl-card">
+        <div className="bl-card-title">Weights <span style={{fontSize:10,color:BLC.mocha,fontWeight:400,fontStyle:'italic',textTransform:'none',letterSpacing:0}}>(from your scale)</span></div>
         <div className="bl-field-row">
           <div className="bl-field"><label className="bl-field-label">Green (g)</label><input className="bl-inp" type="number" inputMode="decimal" value={greenW} onChange={e=>setGreenW(e.target.value)} placeholder="e.g. 1000"/></div>
           <div className="bl-field"><label className="bl-field-label">Roasted (g)</label><input className="bl-inp" type="number" inputMode="decimal" value={roastedW} onChange={e=>setRoastedW(e.target.value)} placeholder="e.g. 840"/></div>
@@ -2231,19 +2720,7 @@ function BlLogForm({ onSave }) {
       </div>
 
       <div className="bl-card">
-        <div className="bl-card-title">Roast Profile</div>
-        <div className="bl-field-row">
-          <div className="bl-field"><label className="bl-field-label">Charge Temp (°C)</label><input className="bl-inp" type="number" inputMode="decimal" value={chargeTemp} onChange={e=>setChargeTemp(e.target.value)} placeholder="e.g. 200"/></div>
-          <div className="bl-field"><label className="bl-field-label">Drop Temp (°C)</label><input className="bl-inp" type="number" inputMode="decimal" value={dropTemp} onChange={e=>setDropTemp(e.target.value)} placeholder="e.g. 205"/></div>
-        </div>
-        <div className="bl-field-row">
-          <div className="bl-field"><label className="bl-field-label">1st Crack</label><input className="bl-inp" value={firstCrack} onChange={e=>setFirstCrack(e.target.value)} placeholder="e.g. 8:30"/></div>
-          <div className="bl-field"><label className="bl-field-label">Total Time</label><input className="bl-inp" value={totalTime} onChange={e=>setTotalTime(e.target.value)} placeholder="e.g. 11:45"/></div>
-        </div>
-      </div>
-
-      <div className="bl-card">
-        <div className="bl-card-title">Cup Score</div>
+        <div className="bl-card-title">Cup Score <span style={{fontSize:10,color:BLC.mocha,fontWeight:400,fontStyle:'italic',textTransform:'none',letterSpacing:0}}>(add after cupping)</span></div>
         <BlStarRating value={score} onChange={setScore}/>
         <div style={{marginTop:12}}>
           <label className="bl-field-label" style={{marginBottom:8}}>Flavor Notes</label>
@@ -2255,7 +2732,7 @@ function BlLogForm({ onSave }) {
 
       <div className="bl-card">
         <div className="bl-card-title">Roaster Notes</div>
-        <textarea className="bl-inp" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Observations — development, airflow adjustments, anything unusual..." rows={4}/>
+        <textarea className="bl-inp" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Observations, airflow adjustments, anything to remember…" rows={4}/>
       </div>
 
       <button className="bl-save-btn" onClick={handleSave} disabled={!canSave}>Save Batch</button>
@@ -2263,9 +2740,11 @@ function BlLogForm({ onSave }) {
   );
 }
 
+// ── Batch Card
 function BlBatchCard({ batch, onDelete }) {
   const [open, setOpen] = useState(false);
   const level = BL_ROAST_LEVELS.find(r=>r.id===batch.roastLevel);
+
   return (
     <div className="bl-batch-card" onClick={()=>setOpen(o=>!o)}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
@@ -2273,26 +2752,33 @@ function BlBatchCard({ batch, onDelete }) {
           <div style={{fontFamily:'Georgia,serif',fontSize:16,fontWeight:700,color:BLC.dark}}>{batch.bean}</div>
           {batch.batchNum&&<div style={{fontSize:10,color:BLC.mocha,letterSpacing:2,marginTop:2}}>BATCH #{batch.batchNum}</div>}
         </div>
-        <div style={{fontSize:10,color:BLC.mocha,letterSpacing:1}}>{new Date(batch.id).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontSize:10,color:BLC.mocha,letterSpacing:1}}>{new Date(batch.id).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</div>
+          {batch.fromCSV && <div style={{fontSize:9,color:'#22c55e',marginTop:2}}>📂 CSV import</div>}
+        </div>
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
         {level&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.espresso,fontWeight:700}}>{level.emoji} {level.label}</span>}
         {batch.origin&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.espresso,fontWeight:700}}>📍 {batch.origin}</span>}
         {batch.process&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.espresso,fontWeight:700}}>{batch.process}</span>}
         {batch.machine&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.espresso,fontWeight:700}}>⚙️ {batch.machine.replace('Aillio Bullet ','Bullet ')}</span>}
-        {batch.roastLoss&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.red,fontWeight:700}}>↓ {batch.roastLoss}% loss</span>}
+        {batch.roastLoss!=null&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.red,fontWeight:700}}>↓ {batch.roastLoss}% loss</span>}
+        {batch.dtr!=null&&<span style={{background:BLC.cream,borderRadius:20,padding:'3px 10px',fontSize:11,color:BLC.espresso,fontWeight:700}}>DTR {batch.dtr}%</span>}
       </div>
       {batch.score>0&&<div style={{fontSize:13,color:BLC.red,fontWeight:700}}>{'★'.repeat(batch.score)}{'☆'.repeat(5-batch.score)}</div>}
       {batch.notes&&!open&&<div style={{fontSize:12,color:BLC.mocha,fontStyle:'italic',marginTop:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>"{batch.notes}"</div>}
       {open&&(
         <div style={{background:BLC.cream,borderRadius:10,padding:14,marginTop:10,fontSize:13,lineHeight:1.7}} onClick={e=>e.stopPropagation()}>
-          {batch.greenWeight&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>Green</span><span style={{fontWeight:700}}>{batch.greenWeight}g</span></div>}
-          {batch.roastedWeight&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>Roasted</span><span style={{fontWeight:700}}>{batch.roastedWeight}g</span></div>}
-          {batch.chargeTemp&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>Charge Temp</span><span style={{fontWeight:700}}>{batch.chargeTemp}°C</span></div>}
-          {batch.dropTemp&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>Drop Temp</span><span style={{fontWeight:700}}>{batch.dropTemp}°C</span></div>}
-          {batch.firstCrack&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>1st Crack</span><span style={{fontWeight:700}}>{batch.firstCrack}</span></div>}
-          {batch.totalTime&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>Total Time</span><span style={{fontWeight:700}}>{batch.totalTime}</span></div>}
-          {batch.flavors&&batch.flavors.length>0&&(
+          {[['Green',batch.greenWeight&&`${batch.greenWeight}g`],['Roasted',batch.roastedWeight&&`${batch.roastedWeight}g`],
+            ['Charge Temp',batch.chargeTemp&&`${batch.chargeTemp}°C`],['Drop Temp',batch.dropTemp&&`${batch.dropTemp}°C`],
+            ['1st Crack',batch.firstCrack],['Total Time',batch.totalTime],['Dev Time',batch.devTime],['DTR',batch.dtr&&`${batch.dtr}%`]
+          ].filter(([,v])=>v).map(([l,v])=>(
+            <div key={l} style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <span style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase'}}>{l}</span>
+              <span style={{fontWeight:700}}>{v}</span>
+            </div>
+          ))}
+          {batch.flavors?.length>0&&(
             <div style={{marginTop:8}}>
               <div style={{color:BLC.mocha,fontSize:11,letterSpacing:1,textTransform:'uppercase',marginBottom:6}}>Flavors</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
@@ -2301,25 +2787,32 @@ function BlBatchCard({ batch, onDelete }) {
             </div>
           )}
           {batch.notes&&<div style={{marginTop:10,fontStyle:'italic',color:BLC.espresso,lineHeight:1.6}}>"{batch.notes}"</div>}
-          <button style={{width:'100%',marginTop:12,background:'none',border:'1.5px solid #e05050',color:'#e05050',borderRadius:8,padding:8,fontSize:12,letterSpacing:1,textTransform:'uppercase',cursor:'pointer',fontFamily:'Georgia,serif'}} onClick={()=>{if(window.confirm('Delete this batch?'))onDelete(batch.id);}}>Delete Batch</button>
+          <button style={{width:'100%',marginTop:12,background:'none',border:'1.5px solid #e05050',color:'#e05050',borderRadius:8,padding:8,fontSize:12,letterSpacing:1,textTransform:'uppercase',cursor:'pointer',fontFamily:'Georgia,serif'}}
+            onClick={()=>{if(window.confirm('Delete this batch?'))onDelete(batch.id);}}>Delete Batch</button>
         </div>
       )}
     </div>
   );
 }
 
+// ── History Tab
 function BlHistoryTab({ batches, onDelete }) {
   const [filter, setFilter] = useState('all');
   const origins = [...new Set(batches.filter(b=>b.origin).map(b=>b.origin))];
   const filtered = filter==='all' ? batches : batches.filter(b=>b.origin===filter);
-  const avgScore = batches.filter(b=>b.score>0).length
-    ? (batches.filter(b=>b.score>0).reduce((a,b)=>a+b.score,0)/batches.filter(b=>b.score>0).length).toFixed(1) : '—';
-  const avgLoss = batches.filter(b=>b.roastLoss).length
-    ? (batches.filter(b=>b.roastLoss).reduce((a,b)=>a+b.roastLoss,0)/batches.filter(b=>b.roastLoss).length).toFixed(1)+'%' : '—';
+  const withScore = batches.filter(b=>b.score>0);
+  const avgScore = withScore.length ? (withScore.reduce((a,b)=>a+b.score,0)/withScore.length).toFixed(1) : '—';
+  const withLoss = batches.filter(b=>b.roastLoss);
+  const avgLoss = withLoss.length ? (withLoss.reduce((a,b)=>a+b.roastLoss,0)/withLoss.length).toFixed(1)+'%' : '—';
 
   function exportCSV() {
-    const cols = ['batch','date','bean','origin','process','roastLevel','machine','greenWeight_g','roastedWeight_g','roastLoss_pct','chargeTemp_C','dropTemp_C','firstCrack','totalTime','score','flavors','notes'];
-    const rows = batches.map(b=>[b.batchNum||'',new Date(b.id).toLocaleDateString('en-CA'),b.bean,b.origin||'',b.process||'',b.roastLevel,b.machine||'',b.greenWeight||'',b.roastedWeight||'',b.roastLoss||'',b.chargeTemp||'',b.dropTemp||'',b.firstCrack||'',b.totalTime||'',b.score||'',(b.flavors||[]).join('; '),b.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+    const cols = ['batch','date','bean','origin','process','roastLevel','machine','greenWeight_g','roastedWeight_g','roastLoss_pct','chargeTemp_C','dropTemp_C','firstCrack','totalTime','devTime','dtr_pct','score','flavors','notes'];
+    const rows = batches.map(b=>[
+      b.batchNum||'', new Date(b.id).toLocaleDateString('en-CA'), b.bean, b.origin||'', b.process||'',
+      b.roastLevel, b.machine||'', b.greenWeight||'', b.roastedWeight||'', b.roastLoss||'',
+      b.chargeTemp||'', b.dropTemp||'', b.firstCrack||'', b.totalTime||'', b.devTime||'', b.dtr||'',
+      b.score||'', (b.flavors||[]).join('; '), b.notes||''
+    ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
     const csv = [cols.join(','),...rows].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -2331,7 +2824,7 @@ function BlHistoryTab({ batches, onDelete }) {
     <div className="bl-page">
       <div style={{textAlign:'center',padding:'56px 0',color:BLC.mocha}}>
         <div style={{fontSize:48,marginBottom:12}}>📋</div>
-        <div style={{fontSize:13,fontStyle:'italic',fontFamily:'Georgia,serif'}}>No batches logged yet.<br/>Log your first roast to start building your dataset.</div>
+        <div style={{fontSize:13,fontStyle:'italic',fontFamily:'Georgia,serif'}}>No batches logged yet.<br/>Import a roast file or log manually.</div>
       </div>
     </div>
   );
@@ -2349,23 +2842,51 @@ function BlHistoryTab({ batches, onDelete }) {
           {origins.map(o=><button key={o} className={`bl-filter-chip${filter===o?' on':''}`} onClick={()=>setFilter(o)}>{o}</button>)}
         </div>
       )}
-      <button className="bl-export-btn" onClick={exportCSV}>⬇ Export to CSV</button>
+      <button className="bl-export-btn" onClick={exportCSV}>⬇ Export to CSV for AI Analysis</button>
       {filtered.map(b=><BlBatchCard key={b.id} batch={b} onDelete={onDelete}/>)}
     </div>
   );
 }
 
+// ── Root Batch Logger App
 function BatchLoggerApp() {
-  const [subTab, setSubTab] = useState('log');
+  const [subTab, setSubTab] = useState('import');
   const [batches, setBatches] = useState(blLoadBatches);
   const [toast, setToast] = useState('');
+  const [importModal, setImportModal] = useState(null);   // parsed CSV data awaiting confirm
+  const [prefill, setPrefill] = useState({});             // confirmed data → pre-fills form
 
-  function showToast(msg) { setToast(msg); setTimeout(()=>setToast(''), 2200); }
+  function showToast(msg) { setToast(msg); setTimeout(()=>setToast(''), 2400); }
 
-  function handleSave(batch) {
+  function handleFileParsed(parsed) {
+    setImportModal(parsed);
+  }
+
+  function handleImportConfirm(data) {
+    // Build batch object from confirmed modal data
+    const batch = {
+      id: Date.now(),
+      bean: data.beanName, origin: data.origin, process: data.process,
+      roastLevel: data.roastLevel, machine: data.machine,
+      roastDate: data.roastDate, batchNum: '',
+      greenWeight: data.greenWeight, roastedWeight: data.roastedWeight,
+      roastLoss: data.roastLoss, chargeTemp: data.chargeTemp, dropTemp: data.dropTemp,
+      firstCrack: data.firstCrackTime, totalTime: data.totalTime,
+      devTime: data.devTime, dtr: data.dtr,
+      score: 0, flavors: [], notes: '',
+      fromCSV: data.source || true,
+    };
     setBatches(prev=>{ const next=[batch,...prev]; blSaveBatches(next); return next; });
+    setImportModal(null);
+    showToast('Batch imported ✓');
     setSubTab('history');
+  }
+
+  function handleManualSave(batch) {
+    setBatches(prev=>{ const next=[batch,...prev]; blSaveBatches(next); return next; });
+    setPrefill({});
     showToast('Batch saved ✓');
+    setSubTab('history');
   }
   function handleDelete(id) {
     setBatches(prev=>{ const next=prev.filter(b=>b.id!==id); blSaveBatches(next); return next; });
@@ -2375,121 +2896,106 @@ function BatchLoggerApp() {
   return (
     <div style={{minHeight:'100vh',background:BLC.cream}}>
       <div className="bl-sub-nav">
-        <button className={`bl-sub-nav-btn${subTab==='log'?' active':''}`} onClick={()=>setSubTab('log')}>📝 Log Batch</button>
+        <button className={`bl-sub-nav-btn${subTab==='import'?' active':''}`} onClick={()=>setSubTab('import')}>📂 Import</button>
+        <button className={`bl-sub-nav-btn${subTab==='manual'?' active':''}`} onClick={()=>setSubTab('manual')}>✏️ Manual</button>
         <button className={`bl-sub-nav-btn${subTab==='history'?' active':''}`} onClick={()=>setSubTab('history')}>
           📋 History {batches.length>0&&`(${batches.length})`}
         </button>
       </div>
-      {subTab==='log' && <BlLogForm onSave={handleSave}/>}
-      {subTab==='history' && <BlHistoryTab batches={batches} onDelete={handleDelete}/>}
-      {toast && <div className="bl-toast">{toast}</div>}
+
+      {/* Import Tab */}
+      {subTab==='import'&&(
+        <div className="bl-page" style={{paddingTop:20}}>
+          <div style={{fontFamily:'Georgia,serif',fontSize:18,fontWeight:700,color:BLC.espresso,marginBottom:6}}>Import Roast File</div>
+          <div style={{fontSize:12,color:BLC.mocha,marginBottom:20,lineHeight:1.6}}>
+            Export a profile from your roasting software and drop it here. The app reads the data automatically — you just confirm and add your cup score.
+          </div>
+          <BlDropZone onFileParsed={handleFileParsed}/>
+          <div style={{marginTop:20,background:'rgba(255,255,255,0.6)',borderRadius:12,padding:'14px 16px',border:`1px solid ${BLC.tan}`}}>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.mocha,textTransform:'uppercase',marginBottom:10}}>Auto-detected from your file</div>
+            {[
+              {icon:'🫘', label:'Bean name & date'},
+              {icon:'🌡️', label:'Charge & drop temperatures'},
+              {icon:'⏱', label:'1st crack, total time, DTR'},
+              {icon:'📈', label:'Full second-by-second curve (stored for AI analysis)'},
+            ].map(r=>(
+              <div key={r.label} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                <span style={{fontSize:16,width:24,textAlign:'center'}}>{r.icon}</span>
+                <span style={{fontSize:13,color:BLC.espresso,fontFamily:'Georgia,serif'}}>{r.label}</span>
+                <span style={{marginLeft:'auto',fontSize:11,color:'#22c55e',fontWeight:700}}>✓</span>
+              </div>
+            ))}
+            <div style={{borderTop:`1px solid ${BLC.tan}`,marginTop:10,paddingTop:10}}>
+              <div style={{fontSize:10,letterSpacing:2,color:BLC.mocha,textTransform:'uppercase',marginBottom:8}}>You add (30 sec)</div>
+              {[
+                {icon:'⚖️', label:'Green & roasted weight (from your scale)'},
+                {icon:'★', label:'Cup score & flavor tags (after cupping)'},
+              ].map(r=>(
+                <div key={r.label} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                  <span style={{fontSize:16,width:24,textAlign:'center'}}>{r.icon}</span>
+                  <span style={{fontSize:13,color:BLC.espresso,fontFamily:'Georgia,serif'}}>{r.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{marginTop:14,padding:'12px 14px',background:'rgba(255,255,255,0.4)',borderRadius:10,border:`1px dashed ${BLC.tan}`}}>
+            <div style={{fontSize:10,letterSpacing:2,color:BLC.mocha,textTransform:'uppercase',marginBottom:6}}>Works with</div>
+            <div style={{fontSize:12,color:BLC.espresso,lineHeight:1.8}}>
+              Roastime (Aillio) · Cropster · Artisan · Ikawa<br/>
+              Any CSV export from any roasting software
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Tab */}
+      {subTab==='manual'&&(
+        <BlLogForm prefill={prefill} onSave={handleManualSave} onClearPrefill={()=>setPrefill({})}/>
+      )}
+
+      {/* History Tab */}
+      {subTab==='history'&&(
+        <BlHistoryTab batches={batches} onDelete={handleDelete}/>
+      )}
+
+      {/* Import Confirm Modal */}
+      {importModal&&(
+        <BlImportModal
+          parsed={importModal}
+          onConfirm={handleImportConfirm}
+          onCancel={()=>setImportModal(null)}
+        />
+      )}
+
+      {toast&&<div className="bl-toast">{toast}</div>}
     </div>
   );
 }
 
 
 
-// ════════════════ ROOT WRAPPER APP ════════════════
+// ════════════════ ROOT APP ════════════════
 function App() {
   const [mainTab, setMainTab] = useState('calculator');
-
   return (
     <div>
-      {/* Top-level tab switcher */}
-      <div style={{
-        background:'#0C0C0C',
-        display:'flex',
-        borderBottom:'3px solid #D95035',
-        position:'sticky', top:0, zIndex:500,
-        overflowX:'auto',
-      }}>
-        <button
-          onClick={()=>setMainTab('calculator')}
-          style={{
-            flex:1, padding:'13px 8px',
-            background: mainTab==='calculator' ? '#D95035' : 'none',
-            border:'none', color: mainTab==='calculator' ? '#F0E4CC' : '#997C6F',
-            fontSize:12, letterSpacing:2, textTransform:'uppercase',
-            cursor:'pointer', fontFamily:'Georgia,serif', fontWeight: mainTab==='calculator'?700:400,
-            whiteSpace:'nowrap',
-          }}>
+      <div style={{background:'#0C0C0C',display:'flex',borderBottom:'3px solid #D95035',position:'sticky',top:0,zIndex:500,overflowX:'auto'}}>
+        <button onClick={()=>setMainTab('calculator')} style={{flex:1,padding:'13px 8px',background:mainTab==='calculator'?'#D95035':'none',border:'none',color:mainTab==='calculator'?'#F0E4CC':'#997C6F',fontSize:12,letterSpacing:2,textTransform:'uppercase',cursor:'pointer',fontFamily:'Georgia,serif',fontWeight:mainTab==='calculator'?700:400,whiteSpace:'nowrap'}}>
           ⚙️ Calculator
         </button>
-        <button
-          onClick={()=>setMainTab('batchlog')}
-          style={{
-            flex:1, padding:'13px 8px',
-            background: mainTab==='batchlog' ? '#D95035' : 'none',
-            border:'none', color: mainTab==='batchlog' ? '#F0E4CC' : '#997C6F',
-            fontSize:12, letterSpacing:2, textTransform:'uppercase',
-            cursor:'pointer', fontFamily:'Georgia,serif', fontWeight: mainTab==='batchlog'?700:400,
-            whiteSpace:'nowrap',
-          }}>
+        <button onClick={()=>setMainTab('batchlog')} style={{flex:1,padding:'13px 8px',background:mainTab==='batchlog'?'#D95035':'none',border:'none',color:mainTab==='batchlog'?'#F0E4CC':'#997C6F',fontSize:12,letterSpacing:2,textTransform:'uppercase',cursor:'pointer',fontFamily:'Georgia,serif',fontWeight:mainTab==='batchlog'?700:400,whiteSpace:'nowrap'}}>
           📋 Batch Logger
         </button>
       </div>
-
-      {/* Calculator — full RoastCalc renders its own header and internal tabs */}
-      <div style={{display: mainTab==='calculator' ? 'block' : 'none'}}>
-        <RoastCalc/>
-      </div>
-
-      {/* Batch Logger */}
-      <div style={{display: mainTab==='batchlog' ? 'block' : 'none'}}>
-        <BatchLoggerApp/>
-      </div>
+      <div style={{display:mainTab==='calculator'?'block':'none'}}><RoastCalc/></div>
+      <div style={{display:mainTab==='batchlog'?'block':'none'}}><BatchLoggerApp/></div>
     </div>
   );
 }
 
-
   </script>
-  <script>
-    // Inject batch logger styles
-    var blStyleEl = document.createElement('style');
-    blStyleEl.textContent = `
-      .bl-page { padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 60px; box-sizing: border-box; }
-      .bl-card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(12,12,12,0.07); }
-      .bl-card-title { font-family: Georgia, serif; font-size: 12px; color: #D95035; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
-      .bl-inp { width: 100%; background: #F0E4CC; border: 1.5px solid #D1BA9B; border-radius: 10px; padding: 11px 14px; font-size: 15px; color: #0C0C0C; font-family: Georgia, serif; box-sizing: border-box; transition: border-color 0.2s; }
-      .bl-inp:focus { border-color: #D95035; outline: none; }
-      .bl-inp::placeholder { color: #997C6F; opacity: 0.7; }
-      textarea.bl-inp { resize: none; line-height: 1.5; }
-      select.bl-inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23997C6F' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-color: #F0E4CC; padding-right: 36px; }
-      .bl-field { margin-bottom: 13px; }
-      .bl-field-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-bottom: 6px; display: block; font-family: Georgia, serif; }
-      .bl-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
-      .bl-level-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-      .bl-level-btn { padding: 10px 6px; border-radius: 10px; border: 1.5px solid #D1BA9B; background: none; color: #997C6F; font-size: 11px; letter-spacing: 0.5px; cursor: pointer; text-align: center; transition: all 0.15s; font-family: Georgia, serif; }
-      .bl-level-btn.on { background: #47322F; color: #F0E4CC; border-color: #47322F; font-weight: 700; }
-      .bl-stars { display: flex; gap: 6px; margin-top: 4px; }
-      .bl-star { width: 36px; height: 36px; background: none; border: 1.5px solid #D1BA9B; border-radius: 8px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; color: #D1BA9B; }
-      .bl-star.lit { background: #D95035; border-color: #D95035; color: white; }
-      .bl-tag-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
-      .bl-tag { padding: 6px 12px; border-radius: 20px; border: 1.5px solid #D1BA9B; font-size: 12px; color: #997C6F; background: none; cursor: pointer; transition: all 0.15s; font-family: Georgia, serif; }
-      .bl-tag.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
-      .bl-save-btn { width: 100%; background: #D95035; color: white; border: none; border-radius: 12px; padding: 16px; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: opacity 0.2s; font-family: Georgia, serif; }
-      .bl-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .bl-save-btn:active { opacity: 0.8; }
-      .bl-stats-bar { background: #47322F; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-      .bl-stat { text-align: center; }
-      .bl-stat-val { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: #F0E4CC; }
-      .bl-stat-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #997C6F; margin-top: 2px; }
-      .bl-filter-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
-      .bl-filter-row::-webkit-scrollbar { display: none; }
-      .bl-filter-chip { white-space: nowrap; padding: 7px 14px; border-radius: 20px; border: 1.5px solid #D1BA9B; background: none; font-size: 12px; color: #997C6F; cursor: pointer; font-family: Georgia, serif; }
-      .bl-filter-chip.on { background: #47322F; color: #F0E4CC; border-color: #47322F; }
-      .bl-export-btn { width: 100%; background: #47322F; color: #F0E4CC; border: none; border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; margin-bottom: 14px; font-family: Georgia, serif; }
-      .bl-batch-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(12,12,12,0.06); border-left: 4px solid #D95035; cursor: pointer; }
-      .bl-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #47322F; color: #F0E4CC; padding: 12px 24px; border-radius: 40px; font-size: 13px; font-weight: 700; letter-spacing: 1px; z-index: 9998; box-shadow: 0 4px 20px rgba(0,0,0,0.3); white-space: nowrap; font-family: Georgia, serif; }
-      .bl-sub-nav { background: #F0E4CC; display: flex; border-bottom: 2px solid #D1BA9B; position: sticky; top: 45px; z-index: 180; }
-      .bl-sub-nav-btn { flex: 1; padding: 13px 8px; background: none; border: none; color: #997C6F; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: Georgia, serif; }
-      .bl-sub-nav-btn.active { color: #D95035; border-bottom-color: #D95035; font-weight: 700; }
-      .bl-loss-box { background: #F0E4CC; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
-      input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-    `;
-    document.head.appendChild(blStyleEl);
 
+  <script>
     var appScript = document.getElementById('app-source').textContent;
     var transformed = Babel.transform(appScript, {presets:['react'],sourceType:'script'}).code;
     eval(transformed);
