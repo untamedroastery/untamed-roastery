@@ -467,7 +467,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
                 ["— NOTES —"],
                 [e.orderNote||"(no notes)"],
               ]);
-              var csv=lines.map(function(r){ return r.map(function(v){ return '"'+String(v||"").replace(/"/g,'""')+'"'; }).join(","); }).join("\n");
+              var csv=lines.map(function(r){ return r.map(function(v){ return '"'+String(v||"").replace(/"/g,'""')+'"'; }).join(","); }).join(String.fromCharCode(10));
               var a=document.createElement("a");
               a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
               a.download="session-"+(e.client||"order").replace(/\s+/g,"-").toLowerCase()+"-"+d.toISOString().slice(0,10)+".csv";
@@ -1910,8 +1910,7 @@ function FinanceTab({ log, inventory }){
                 '"'+(e.orderNote||"").replace(/"/g,'""')+'"',
               ]);
             });
-            var csv=rows.map(function(r){ return r.join(","); }).join("
-");
+            var csv=rows.map(function(r){ return r.join(","); }).join(String.fromCharCode(10)));
             var a=document.createElement("a");
             a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
             a.download="untamed-finance-"+new Date().toISOString().slice(0,10)+".csv";
@@ -2173,7 +2172,7 @@ function RoastCalc(){
           q(e.orderNote),
         ];
       });
-      return [H,...R].map(function(r){ return r.join(","); }).join("\n");
+      return [H,...R].map(function(r){ return r.join(","); }).join(String.fromCharCode(10));
     }
     const csv=buildCSV(filteredLog);
     const blob=new Blob([csv],{type:"text/csv"});
