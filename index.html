@@ -2283,14 +2283,14 @@ function RoastCalc(){
           <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:18}}>
             <div>
               <SL>Client / Order</SL>
-              <input className="inp" value={client} onChange={e=>setClient(e.target.value)} placeholder="e.g. KNDZ, Wedding, Retail batch…"/>
+              <input className="inp" value={client} onChange={e=>setClient(e.target.value)} placeholder="e.g. KNDZ, Wedding, Retail batch"/>
             </div>
             <div>
               <SL>Sales Channel</SL>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {CHANNELS.map(ch=>(
                   <button key={ch.id} onClick={()=>{setChannel(ch.id);setMarginPct(channelMargin(ch.id));}}
-                    style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:10,border:`2px solid ${channel===ch.id?C.red:C.tan}`,background:channel===ch.id?`${C.red}12`:"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:channel===ch.id?700:400,color:channel===ch.id?C.red:C.espresso,transition:"all 0.15s"}}>
+                    style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:10,border:"2px solid "+(channel===ch.id?C.red:C.tan),background:channel===ch.id?C.red+"12":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:channel===ch.id?700:400,color:channel===ch.id?C.red:C.espresso}}>
                     {ch.icon} {ch.label}
                     <div style={{fontSize:10,color:channel===ch.id?C.red:C.mocha,marginTop:2}}>~{ch.defaultMargin}% margin</div>
                   </button>
@@ -2301,48 +2301,43 @@ function RoastCalc(){
               <SL>Margin % Override</SL>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <input type="number" className="inp" value={marginPct} onChange={e=>setMarginPct(parseFloat(e.target.value)||0)} placeholder="75" style={{maxWidth:100}}/>
-                <span style={{fontSize:12,color:C.mocha}}>% — sell price auto-calculated from cost</span>
+                <span style={{fontSize:12,color:C.mocha}}>% override (default set by channel)</span>
               </div>
             </div>
-            </div>
-            <div>
-              {orderMode==="units"?(
-                <>
-                  <SL>Number of Units</SL>
-                  <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
-                    <input className="inp" type="number" value={unitCount} onChange={e=>setUnitCount(e.target.value)} placeholder="e.g. 4000" style={{flex:1}}/>
-                    <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`,flexShrink:0}}>
-                      {FORMATS.map(f=><button key={f.id} onClick={()=>{
-                        setFormat(f.id);
-                        setGramsPerUnit(f.id==="whole"?250:15);
-                      }} style={{padding:"0 7px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
-                    </div>
+          </div>
+          <div style={{marginBottom:18}}>
+            {orderMode==="units"?(
+              <div>
+                <SL>Number of Units</SL>
+                <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
+                  <input className="inp" type="number" value={unitCount} onChange={e=>setUnitCount(e.target.value)} placeholder="e.g. 4000" style={{flex:1}}/>
+                  <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:"1.5px solid "+C.tan,flexShrink:0}}>
+                    {FORMATS.map(f=><button key={f.id} onClick={()=>{setFormat(f.id);setGramsPerUnit(f.id==="whole"?250:15);}} style={{padding:"0 7px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,background:"rgba(255,255,255,0.6)",border:`1px solid ${C.tan}`,borderRadius:10,padding:"7px 12px"}}>
-                    <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Grams per unit:</span>
-                    <input type="number" min="1" step="1" value={gramsPerUnit} onChange={e=>setGramsPerUnit(parseFloat(e.target.value)||15)}
-                      style={{width:60,border:`1.5px solid ${C.red}`,borderRadius:8,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:C.red,background:C.cream,textAlign:"center",outline:"none"}}/>
-                    <span style={{fontSize:11,color:C.mocha}}>g</span>
-                    <div style={{display:"flex",gap:4,marginLeft:4,flexWrap:"wrap"}}>
-                      {[{label:"drip/steep",g:15},{label:"whole",g:250}].map(p=>(
-                        <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?`${C.red}20`:"transparent",border:`1px solid ${gramsPerUnit===p.g?C.red:C.tan}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
-                      ))}
-                    </div>
-                    {unitCount&&gramsPerUnit&&<span style={{marginLeft:"auto",fontSize:11,color:C.espresso,fontWeight:700,whiteSpace:"nowrap"}}>= {fmtW(parseFloat(unitCount)*gramsPerUnit)} roasted</span>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,background:"rgba(255,255,255,0.6)",border:"1px solid "+C.tan,borderRadius:10,padding:"7px 12px"}}>
+                  <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Grams per unit:</span>
+                  <input type="number" min="1" step="1" value={gramsPerUnit} onChange={e=>setGramsPerUnit(parseFloat(e.target.value)||15)} style={{width:60,border:"1.5px solid "+C.red,borderRadius:8,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:C.red,background:C.cream,textAlign:"center",outline:"none"}}/>
+                  <span style={{fontSize:11,color:C.mocha}}>g</span>
+                  <div style={{display:"flex",gap:4,marginLeft:4,flexWrap:"wrap"}}>
+                    {[{label:"drip/steep",g:15},{label:"whole",g:250}].map(p=>(
+                      <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?C.red+"20":"transparent",border:"1px solid "+(gramsPerUnit===p.g?C.red:C.tan),borderRadius:6,padding:"2px 7px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
+                    ))}
                   </div>
-                </>
-              ):(
-                <>
-                  <SL>Roasted Amount Needed</SL>
-                  <div style={{display:"flex",gap:8}}>
-                    <input className="inp" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 5000" style={{flex:1}}/>
-                    <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:`1.5px solid ${C.tan}`}}>
-                      {["g","kg"].map(u=><button key={u} onClick={()=>setUnit(u)} style={{padding:"0 16px",background:unit===u?C.red:"transparent",color:unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:unit===u?700:400}}>{u}</button>)}
-                    </div>
+                  {unitCount&&gramsPerUnit&&<span style={{marginLeft:"auto",fontSize:11,color:C.espresso,fontWeight:700,whiteSpace:"nowrap"}}>= {fmtW(parseFloat(unitCount)*gramsPerUnit)} roasted</span>}
+                </div>
+              </div>
+            ):(
+              <div>
+                <SL>Roasted Amount Needed</SL>
+                <div style={{display:"flex",gap:8}}>
+                  <input className="inp" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 5000" style={{flex:1}}/>
+                  <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:"1.5px solid "+C.tan}}>
+                    {["g","kg"].map(u=><button key={u} onClick={()=>setUnit(u)} style={{padding:"0 16px",background:unit===u?C.red:"transparent",color:unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:unit===u?700:400}}>{u}</button>)}
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </div>
 
           
