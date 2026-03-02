@@ -1684,6 +1684,30 @@ function FinanceTab({ log, inventory }){
 
   var SL2 = function(p){ return <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>{p.children}</div>; };
 
+  function exportFinanceCSV(){
+    var NL=String.fromCharCode(10);
+    var rows=[["Date","Client","Channel","Format","Weight(kg)","Revenue($)","Cost($)","Profit($)","Margin%","Bean Origin","Notes"]];
+    filtered.forEach(function(e){
+      var f=entryFinance(e);
+      var ch=CHANNELS.find(function(c){ return c.id===(e.channel||"retail"); })||CHANNELS[0];
+      function q(v){ return '"'+String(v||"").replace(/"/g,'""')+'"'; }
+      rows.push([
+        new Date(e.id).toLocaleDateString(),
+        q(e.client), q(ch.label), q(e.format),
+        (e.grams/1000).toFixed(3),
+        f.revenue.toFixed(2), f.totalCost.toFixed(2),
+        f.margin.toFixed(2), f.marginPct.toFixed(1),
+        q(e.beanOrigin), q(e.orderNote),
+      ]);
+    });
+    var csv=rows.map(function(r){ return r.join(","); }).join(NL);
+    var a=document.createElement("a");
+    a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+    a.download="untamed-finance-"+new Date().toISOString().slice(0,10)+".csv";
+    a.click();
+  }
+
+
   return (
     <div style={{maxWidth:1040,margin:"0 auto",padding:"16px 14px",width:"100%",boxSizing:"border-box"}}>
 
@@ -1894,28 +1918,7 @@ function FinanceTab({ log, inventory }){
           </div>
 
           
-          <button onClick={function(){
-            var rows=[["Date","Client","Channel","Format","Weight(kg)","Revenue","Cost","Margin","Margin%","Bean Origin","Notes"]];
-            filtered.forEach(function(e){
-              var f=entryFinance(e);
-              var ch=CHANNELS.find(function(c){ return c.id===(e.channel||"retail"); })||CHANNELS[0];
-              rows.push([
-                new Date(e.id).toLocaleDateString(),
-                '"'+(e.client||"").replace(/"/g,'""')+'"',
-                ch.label, e.format||"",
-                (e.grams/1000).toFixed(3),
-                f.revenue.toFixed(2), f.totalCost.toFixed(2),
-                f.margin.toFixed(2), f.marginPct.toFixed(1),
-                e.beanOrigin||"",
-                '"'+(e.orderNote||"").replace(/"/g,'""')+'"',
-              ]);
-            });
-            var csv=rows.map(function(r){ return r.join(","); }).join(String.fromCharCode(10)));
-            var a=document.createElement("a");
-            a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
-            a.download="untamed-finance-"+new Date().toISOString().slice(0,10)+".csv";
-            a.click();
-          }} style={{width:"100%",padding:12,background:C.espresso,color:C.cream,border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:1}}>
+          <button onClick={exportFinanceCSV} style={{width:"100%",padding:12,background:C.espresso,color:C.cream,border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:1}}>
             ↓ Export Finance Report (CSV)
           </button>
         </div>
@@ -2172,7 +2175,7 @@ function RoastCalc(){
           q(e.orderNote),
         ];
       });
-      return [H,...R].map(function(r){ return r.join(","); }).join(String.fromCharCode(10));
+      var NL=String.fromCharCode(10); return [H,...R].map(function(r){ return r.join(","); }).join(NL);
     }
     const csv=buildCSV(filteredLog);
     const blob=new Blob([csv],{type:"text/csv"});
