@@ -409,6 +409,24 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
             </div>
           )}
 
+          {entry.roundDetails&&entry.roundDetails.length>0&&(
+            <div style={{border:"1.5px solid "+C.tan,borderRadius:12,padding:"12px 16px",marginBottom:10,background:C.white}}>
+              <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:8}}>Rounds ({entry.completedRounds||0}/{entry.rounds||0} completed)</div>
+              <div style={{display:"grid",gap:4}}>
+                {entry.roundDetails.map(function(r){
+                  return (
+                    <div key={r.round} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",borderRadius:7,background:r.done?"#f0fdf4":C.cream,border:"1px solid "+(r.done?"#86efac":C.tan)}}>
+                      <div style={{width:16,height:16,borderRadius:4,border:"2px solid "+(r.done?"#16a34a":C.tan),background:r.done?"#16a34a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {r.done&&<span style={{color:"#fff",fontSize:9,fontWeight:900}}>✓</span>}
+                      </div>
+                      <span style={{fontSize:11,fontWeight:600,color:r.done?"#16a34a":C.espresso,minWidth:52}}>Round {r.round}</span>
+                      {r.note?<span style={{fontSize:11,color:C.mocha,fontStyle:"italic",flex:1}}>{r.note}</span>:<span style={{fontSize:10,color:r.done?"#86efac":C.tan,flex:1}}>{r.done?"Completed":"Not completed"}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
             <button onClick={function(){
               var e=entry;
@@ -1216,7 +1234,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
   var C2 = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF"};
   var TRACK_COLORS = ["#D95035","#2563eb","#16a34a","#7c3aed","#d97706","#0891b2"];
 
-  function newTrack(){ return {id:Date.now()+Math.random(),machineId:"",beanId:"",roastLevel:"medium",gramsInput:"",gramsUnit:"g",grams:0,roundStates:{},notes:""}; }
+  function newTrack(){ return {id:Date.now()+Math.random(),machineId:"",beanId:"",roastLevel:"medium",gramsInput:"",gramsUnit:"g",grams:0,roundStates:{},roundNotes:{},notes:"",channel:"retail",marginPct:75}; }
 
   // Use persisted state from parent (survives tab switches)
   var tracks = persistedTracks || [newTrack(),newTrack()];
@@ -1236,6 +1254,14 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
 
   function fmtSec(s){ var m=Math.floor(s/60),sec=s%60; return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"); }
   function updateTrack(id,updates){ setTracks(function(p){ return p.map(function(t){ return t.id===id?Object.assign({},t,updates):t; }); }); }
+  function updateTrackRoundNote(trackId,roundIdx,note){
+    setTracks(function(p){ return p.map(function(t){
+      if(t.id!==trackId) return t;
+      var rn=Object.assign({},t.roundNotes||{});
+      if(note) rn[roundIdx]=note; else delete rn[roundIdx];
+      return Object.assign({},t,{roundNotes:rn});
+    }); });
+  }
   function removeTrack(id){ setTracks(function(p){ return p.filter(function(t){ return t.id!==id; }); }); }
   function addTrack(){ setTracks(function(p){ return [...p,newTrack()]; }); }
   function toggleRound(trackId,roundIdx,wasDone){
@@ -1261,17 +1287,32 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     var rt=m?(m.rt?.[t.roastLevel]||12):12;
     var cool=m?(m.cool||6):6;
     var bean=inventory.find(function(b){ return b.id===t.beanId; })||null;
+    var doneCount=Object.values(t.roundStates||{}).filter(Boolean).length;
+    var actualRounds=doneCount>0?doneCount:rounds;
+    var sellPricePerKg=(cap>0&&t.grams>0&&t.marginPct>0)?((((bean?bean.costPerKg||0:0)*Math.ceil(t.grams/(1-loss))/1000)/t.grams*1000)/(1-t.marginPct/100)):null;
+    // Build per-round detail array for log display
+    var roundDetails=Array.from({length:rounds}).map(function(_,i){
+      return {round:i+1,done:!!(t.roundStates||{})[i],note:(t.roundNotes||{})[i]||""};
+    });
     return {
       id:Date.now()+Math.random(),
       client:sessionName||"Multi-track Session",
       grams:t.grams,roastLevel:t.roastLevel,level:lv.label,
       machines:m?"1× "+m.model:"Unknown",
-      rounds,totalTime:rounds*(rt+cool),roastTime:rounds*rt,coolTime:rounds*cool,
+      rounds,completedRounds:doneCount,
+      totalTime:actualRounds*(rt+cool),roastTime:actualRounds*rt,coolTime:actualRounds*cool,
       greenNeeded:Math.ceil(t.grams/(1-loss)),
       wastage:Math.round(cap*rounds-t.grams),
-      format:"whole",status:"pending",orderNote:t.notes||"",channel:"retail",marginPct:75,
+      lossPercent:Math.round(loss*100),
+      format:"whole",status:"pending",orderNote:t.notes||"",
+      channel:t.channel||"retail",marginPct:t.marginPct||75,
+      sellPricePerKg:sellPricePerKg,
+      margin:sellPricePerKg?(sellPricePerKg*(t.grams/1000)-((bean?bean.costPerKg||0:0)*Math.ceil(t.grams/(1-loss))/1000)):null,
       beanOrigin:bean?bean.origin:null,beanOriginId:t.beanId||null,
+      greenCostPerKg:bean?bean.costPerKg||0:null,
+      totalCost:bean?((bean.costPerKg||0)*Math.ceil(t.grams/(1-loss))/1000):null,
       sessionDuration:globalTimer,isMultiTrack:true,
+      roundDetails:roundDetails,
     };
   }
 
@@ -1434,9 +1475,16 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
                             <span style={{fontSize:11,color:done?"#16a34a":C2.espresso,textDecoration:done?"line-through":"none"}}>Round {i+1}</span>
                             <span style={{fontSize:10,color:C2.mocha}}>{done?"done":fmtT((i+1-doneCount)*timePerRound)+" rem."}</span>
                           </div>
-                          <div style={{height:4,background:"rgba(0,0,0,0.06)",borderRadius:2,overflow:"hidden"}}>
+                          <div style={{height:4,background:"rgba(0,0,0,0.06)",borderRadius:2,overflow:"hidden",marginBottom:4}}>
                             <div style={{height:"100%",width:done?"100%":"0%",background:color,borderRadius:2,transition:"width 0.3s"}}/>
                           </div>
+                          <input
+                            type="text"
+                            value={(track.roundNotes||{})[i]||""}
+                            onChange={function(e){ updateTrackRoundNote(track.id,i,e.target.value); }}
+                            placeholder={"Round "+(i+1)+" note..."}
+                            style={{width:"100%",fontSize:10,border:"1px solid "+(done?"#86efac":C2.tan),borderRadius:5,padding:"3px 7px",fontFamily:"Georgia,serif",color:C2.espresso,background:done?"#f0fdf4":"rgba(255,255,255,0.8)",outline:"none",boxSizing:"border-box"}}
+                          />
                         </div>
                       </div>
                     );
@@ -1444,6 +1492,26 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
                 </div>
               )}
 
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:6}}>Sales Channel & Margin</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
+                  {CHANNELS.map(function(ch){
+                    var sel=(track.channel||"retail")===ch.id;
+                    return (
+                      <button key={ch.id} onClick={function(){ updateTrack(track.id,{channel:ch.id,marginPct:channelMargin(ch.id)}); }}
+                        style={{flex:"1 1 auto",padding:"6px 8px",borderRadius:8,border:"2px solid "+(sel?color:C2.tan),background:sel?color+"18":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:sel?700:400,color:sel?color:C2.mocha}}>
+                        {ch.icon} {ch.label} <span style={{fontSize:9,opacity:0.8}}>~{ch.defaultMargin}%</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                  <span style={{fontSize:11,color:C2.mocha}}>Margin %</span>
+                  <input type="number" value={track.marginPct||75} onChange={function(e){ updateTrack(track.id,{marginPct:parseFloat(e.target.value)||0}); }}
+                    style={{width:64,border:"1.5px solid "+color,borderRadius:7,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,color:color,background:"rgba(255,255,255,0.9)",textAlign:"center",outline:"none"}}/>
+                  <span style={{fontSize:11,color:C2.mocha}}>%</span>
+                </div>
+              </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Notes</div>
                 <textarea value={track.notes||""} onChange={function(e){ updateTrack(track.id,{notes:e.target.value}); }}
