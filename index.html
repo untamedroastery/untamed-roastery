@@ -1538,9 +1538,26 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
 
   function newTrack(){ return {id:Date.now()+Math.random(),machineId:"",beanId:"",roastLevel:"medium",gramsInput:"",gramsUnit:"g",grams:0,roundStates:{},roundNotes:{},notes:"",channel:"retail",marginPct:75,startTime:"",trackTimer:0,trackRunning:false}; }
 
-  // Use persisted state from parent (survives tab switches)
-  var tracks = persistedTracks || [newTrack(),newTrack()];
-  function setTracks(fn){ var next = typeof fn==="function" ? fn(tracks) : fn; onTracksChange(next); }
+  // Local tracks state - initialized from persistedTracks (Firebase) or two empty tracks
+  // IMPORTANT: only call onTracksChange when user actually changes something, not on init
+  var localTracksS = useState(null); var localTracks = localTracksS[0]; var setLocalTracks = localTracksS[1];
+  var userChangedS = useState(false); var userChanged = userChangedS[0]; var setUserChanged = userChangedS[1];
+
+  // Sync from parent when Firebase loads (persistedTracks goes from null -> real data)
+  useEffect(function(){
+    if(persistedTracks !== null && persistedTracks !== undefined){
+      setLocalTracks(persistedTracks);
+    }
+  }, [persistedTracks]);
+
+  var tracks = localTracks || (persistedTracks !== null && persistedTracks !== undefined ? persistedTracks : [newTrack(),newTrack()]);
+
+  function setTracks(fn){
+    var next = typeof fn==="function" ? fn(tracks) : fn;
+    setLocalTracks(next);
+    setUserChanged(true);
+    onTracksChange(next);
+  }
 
   // Per-track timer tick
   useEffect(function(){
@@ -2481,13 +2498,13 @@ function RoastCalc(){
   useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
   // ── Persist tracks to Firebase (survives refresh) ──
-  useEffect(function(){ if(!sessionLoaded)return; fbSet("activeTracks",tracks); },[tracks,sessionLoaded]);
+  useEffect(function(){ if(!sessionLoaded||tracks===null)return; fbSet("activeTracks",tracks); },[tracks,sessionLoaded]);
   useEffect(function(){ if(!sessionLoaded)return; fbSet("activeSessionName",sessionName); },[sessionName,sessionLoaded]);
   useEffect(function(){ if(!sessionLoaded)return; fbSet("activeGlobalTimer",globalTimer); },[globalTimer,sessionLoaded]);
 
   // ── Live session sync (always push when tracks have real data) ──
   useEffect(function(){
-    if(!sessionLoaded) return;
+    if(!sessionLoaded||tracks===null) return;
     var hasRealTrack = tracks&&tracks.some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; });
     if(!hasRealTrack){ fbSet("liveSession",null); return; }
     fbSet("liveSession",{
