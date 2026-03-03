@@ -1642,7 +1642,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     onSavedTrackIdsChange(function(p){ var newIds=unsaved.map(function(t){ return t.id; }); return [...p,...newIds.filter(function(id){ return !p.includes(id); })]; });
   }
 
-  var readyTracks = tracks.filter(function(t){ return t.grams>0&&t.machineId; });
+  var readyTracks = tracks.filter(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; });
   var unsavedCount = readyTracks.filter(function(t){ return !(Array.isArray(savedTrackIds)&&savedTrackIds.includes(t.id)); }).length;
 
   return (
@@ -2372,7 +2372,7 @@ function LiveSessionViewer({ session, inventory }){
             var m = MACHINES.find(function(x){ return x.id===track.machineId; });
             var lv = ROAST_LEVELS.find(function(r){ return r.id===(track.roastLevel||"medium"); })||ROAST_LEVELS[2];
             var loss = lv.loss;
-            var grams = track.grams||0;
+            var grams = track.grams||(parseFloat(track.gramsInput)||0)*(track.gramsUnit==="kg"?1000:1);
             var cap = m?m.capacity*(1-loss):0;
             var rounds = cap>0?Math.ceil(grams/cap):0;
             var doneCount = Object.values(track.roundStates||{}).filter(Boolean).length;
@@ -2442,14 +2442,15 @@ function RoastCalc(){
   var piS=useState([]); var packagingInv=piS[0]; var setPackagingInv=piS[1];
   var srS=useState(false); var storageReady=srS[0]; var setStorageReady=srS[1];
   var lsesS=useState(null); var liveSession=lsesS[0]; var setLiveSession=lsesS[1];
-  var lsOwnS=useState(false); var isLiveOwner=lsOwnS[0]; var setIsLiveOwner=lsOwnS[1];
+
 
   useEffect(function(){
     var db = window.__db;
     var keys = [
       ["log",setLog],["schedule",setSchedule],["inventory",setInventory],
       ["costs",setCosts],["beanCatalog",setBeanCatalog],["packagingInv",setPackagingInv],
-      ["liveSession",setLiveSession]
+      ["liveSession",setLiveSession],
+      ["activeTracks",setTracks],["activeSessionName",setSessionName],["activeGlobalTimer",setGlobalTimer]
     ];
     Promise.all(keys.map(function(pair){ return db.collection("untamed-roastery").doc(pair[0]).get(); }))
       .then(function(snaps){
@@ -2472,18 +2473,22 @@ function RoastCalc(){
   useEffect(function(){ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
   useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
-  // ── Live session sync ──
-  // When tracks change AND we are the owner, push to Firebase
+  // ── Persist tracks to Firebase (survives refresh) ──
+  useEffect(function(){ if(!storageReady)return; fbSet("activeTracks",tracks); },[tracks,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("activeSessionName",sessionName); },[sessionName,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("activeGlobalTimer",globalTimer); },[globalTimer,storageReady]);
+
+  // ── Live session sync (always push when tracks have real data) ──
   useEffect(function(){
-    if(!storageReady||!isLiveOwner) return;
-    var hasRealTrack = tracks&&tracks.some(function(t){ return t.grams>0&&t.machineId; });
+    if(!storageReady) return;
+    var hasRealTrack = tracks&&tracks.some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; });
     if(!hasRealTrack){ fbSet("liveSession",null); return; }
     fbSet("liveSession",{
       tracks:tracks, sessionName:sessionName,
       globalTimer:globalTimer, sessionRunning:sessionRunning,
       updatedAt:Date.now(), active:true
     });
-  },[tracks,sessionName,globalTimer,sessionRunning,storageReady,isLiveOwner]);
+  },[tracks,sessionName,globalTimer,sessionRunning,storageReady]);
 
   var tabS=useState("calc"); var activeTab=tabS[0]; var setActiveTab=tabS[1];
   var modeS=useState("single"); var calcMode=modeS[0]; var setCalcMode=modeS[1];
@@ -2551,15 +2556,15 @@ function RoastCalc(){
         {activeTab==="calc"&&(
           <div>
 
-            {liveSession&&liveSession.active&&!isLiveOwner&&(liveSession.tracks||[]).some(function(t){ return t.grams>0&&t.machineId; })&&(
+            {liveSession&&liveSession.active&&calcMode!=="multi"&&(liveSession.tracks||[]).some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; })&&(
               <LiveSessionViewer session={liveSession} inventory={inventory}/>
             )}
 
-            {liveSession&&liveSession.active&&isLiveOwner&&(liveSession.tracks||[]).some(function(t){ return t.grams>0&&t.machineId; })&&(
+            {liveSession&&liveSession.active&&(liveSession.tracks||[]).some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; })&&calcMode==="multi"&&(
               <div style={{background:"#1a1008",borderRadius:10,padding:"8px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#F0E4CC"}}>
                 <span style={{width:8,height:8,borderRadius:"50%",background:"#4ade80",display:"inline-block",flexShrink:0,boxShadow:"0 0 6px #4ade80"}}/>
                 <span>Live session active — everyone can see the roast in real-time</span>
-                <button onClick={function(){ setIsLiveOwner(false); fbSet("liveSession",null); }}
+                <button onClick={function(){ fbSet("liveSession",null); fbSet("activeTracks",null); setTracks(null); }}
                   style={{marginLeft:"auto",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 10px",cursor:"pointer",color:"#F0E4CC",fontFamily:"Georgia,serif",fontSize:10}}>
                   End Live
                 </button>
@@ -2599,7 +2604,7 @@ function RoastCalc(){
                 inventory={inventory}
                 onSaveSession={saveSession}
                 persistedTracks={tracks}
-                onTracksChange={function(t){ setTracks(t); setIsLiveOwner(true); }}
+                onTracksChange={setTracks}
                 sessionName={sessionName}
                 onSessionNameChange={setSessionName}
                 globalTimer={globalTimer}
