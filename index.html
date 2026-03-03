@@ -256,11 +256,23 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
 
         <div style={{flex:"1 1 180px",minWidth:0}}>
           <div style={{fontWeight:700,color:editing?"#2563eb":C.dark,fontSize:16,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.2}}>
-            {e.beanOrigin?e.beanOrigin+" · "+fmtDate(entry.id):fmtDate(entry.id)}{editing&&" ✏️"}
+            {(function(){
+              var name = e.client&&e.client!=="Multi-track Session"?e.client:null;
+              var bean = e.beanOrigin||null;
+              var date = fmtDate(entry.id);
+              if(name) return name+(bean?" · "+bean:"")+(editing?" ✏️":"");
+              return (bean?bean+" · ":"")+date+(editing?" ✏️":"");
+            })()}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4,flexWrap:"wrap"}}>
             {e.isMultiTrack&&<span style={{fontSize:9,letterSpacing:0.8,color:C.mocha,background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"1px 6px",textTransform:"uppercase"}}>Multi-track</span>}
-            {e.client&&e.client!=="Multi-track Session"&&<span style={{fontSize:10,color:C.mocha}}>{e.client}</span>}
+            {e.channel&&(function(){
+              var ch=CHANNELS.find(function(c){ return c.id===e.channel; });
+              if(!ch) return null;
+              var clr=e.channel==="retail"?"#D95035":e.channel==="wholesale"?"#2563eb":"#7c3aed";
+              return <span style={{fontSize:9,letterSpacing:0.8,color:clr,background:clr+"15",border:"1px solid "+clr+"40",borderRadius:8,padding:"1px 6px",textTransform:"uppercase",fontWeight:700}}>{ch.label}</span>;
+            })()}
+            {e.client&&e.client!=="Multi-track Session"&&e.beanOrigin&&<span style={{fontSize:10,color:C.mocha}}>{fmtDate(entry.id)}</span>}
           </div>
         </div>
 
@@ -1339,7 +1351,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     });
     return {
       id:Date.now()+Math.random(),
-      client:sessionName||"Multi-track Session",
+      client:t.startTime?t.startTime:(sessionName||"Multi-track Session"),
       grams:t.grams,roastLevel:t.roastLevel,level:lv.label,
       machines:m?"1× "+m.model:"Unknown",
       rounds,completedRounds:doneCount,
