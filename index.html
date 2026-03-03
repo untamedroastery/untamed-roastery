@@ -1849,50 +1849,30 @@ function FinanceTab({ log, inventory }){
   }
 
 
-  return (
-    <div style={{maxWidth:1040,margin:"0 auto",padding:"16px 14px",width:"100%",boxSizing:"border-box"}}>
+  // Section open/close state
+  var so = useState({breakdown:false,trend:false,beans:false,entries:false});
+  var sectOpen=so[0]; var setSectOpen=so[1];
+  function toggleSect(k){ setSectOpen(function(p){ var n=Object.assign({},p); n[k]=!n[k]; return n; }); }
 
-      
-      <div style={{background:"rgba(255,255,255,0.75)",borderRadius:14,padding:14,marginBottom:16,border:"1.5px solid "+C.tan}}>
-        <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:10}}>Filter & Sort</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-          <div>
-            <SL2>From</SL2>
-            <input type="date" value={dateFrom} onChange={function(e){ setDateFrom(e.target.value); }}
-              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:8,padding:"7px 10px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+  function Section({ id, title, badge, children }){
+    var open = sectOpen[id];
+    return (
+      <div style={{border:"1.5px solid "+C.tan,borderRadius:12,overflow:"hidden",marginBottom:10}}>
+        <div onClick={function(){ toggleSect(id); }}
+          style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",cursor:"pointer",background:open?C.espresso:"rgba(255,255,255,0.9)",transition:"background 0.2s"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:13,fontWeight:700,color:open?C.cream:C.espresso,fontFamily:"Georgia,serif"}}>{title}</span>
+            {badge&&<span style={{fontSize:10,color:open?C.tan:C.mocha,background:open?"rgba(255,255,255,0.12)":C.cream,border:"1px solid "+(open?"rgba(255,255,255,0.2)":C.tan),borderRadius:8,padding:"1px 7px"}}>{badge}</span>}
           </div>
-          <div>
-            <SL2>To</SL2>
-            <input type="date" value={dateTo} onChange={function(e){ setDateTo(e.target.value); }}
-              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:8,padding:"7px 10px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <SL2>Channel</SL2>
-            <select value={channelFilter} onChange={function(e){ setChannelFilter(e.target.value); }}
-              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:8,padding:"7px 10px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}>
-              <option value="all">All Channels</option>
-              {CHANNELS.map(function(c){ return <option key={c.id} value={c.id}>{c.icon} {c.label}</option>; })}
-            </select>
-          </div>
-          <div>
-            <SL2>Sort By</SL2>
-            <select value={sortBy} onChange={function(e){ setSortBy(e.target.value); }}
-              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:8,padding:"7px 10px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}>
-              <option value="date-desc">Newest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="revenue-desc">Highest Revenue</option>
-              <option value="margin-desc">Highest Margin</option>
-              <option value="weight-desc">Most Volume</option>
-            </select>
-          </div>
+          <span style={{fontSize:12,color:open?C.tan:C.mocha}}>{open?"▲":"▼"}</span>
         </div>
-        {(dateFrom||dateTo||channelFilter!=="all"||productFilter!=="all")&&(
-          <button onClick={function(){ setDateFrom(""); setDateTo(""); setChannelFilter("all"); setProductFilter("all"); }}
-            style={{marginTop:10,background:"transparent",border:"1px solid "+C.tan,borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:11,color:C.mocha,fontFamily:"Georgia,serif"}}>
-            Clear Filters
-          </button>
-        )}
+        {open&&<div style={{background:"rgba(255,255,255,0.95)",padding:"14px 16px"}}>{children}</div>}
       </div>
+    );
+  }
+
+  return (
+    <div style={{maxWidth:900,margin:"0 auto",padding:"16px 14px",width:"100%",boxSizing:"border-box"}}>
 
       {filtered.length===0&&(
         <div style={{textAlign:"center",padding:"64px 0",color:C.mocha}}>
@@ -1903,124 +1883,142 @@ function FinanceTab({ log, inventory }){
 
       {filtered.length>0&&(
         <div>
-          
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
-            {[
-              {l:"Total Revenue",v:fmt$(totals.revenue),icon:"💵",color:C.green,sub:totals.entries+" orders"},
-              {l:"Total Cost",v:fmt$(totals.cost),icon:"📤",color:"#dc2626",sub:totals.kg.toFixed(1)+"kg roasted"},
-              {l:"Gross Profit",v:fmt$(totals.margin),icon:"📈",color:totals.margin>=0?C.green:"#dc2626",sub:fmtPct(overallMarginPct)+" margin"},
-              {l:"Green Bean Cost",v:fmt$(totals.greenCost),icon:"🌱",color:C.espresso,sub:"Wastage: "+fmt$(totals.wasteCost)},
-            ].map(function(s){ return (
-              <div key={s.l} style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"12px 14px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-                  <span style={{fontSize:18}}>{s.icon}</span>
-                  <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase"}}>{s.l}</div>
-                </div>
-                <div style={{fontSize:22,fontWeight:900,color:s.color,fontFamily:"Georgia,serif",wordBreak:"break-word"}}>{s.v}</div>
-                <div style={{fontSize:10,color:C.mocha,marginTop:3}}>{s.sub}</div>
-              </div>
-            ); })}
-          </div>
 
           
-          <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"12px 14px",marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>Overall Margin Health</div>
-              <div style={{fontSize:20,fontWeight:900,color:overallMarginPct>=60?C.green:overallMarginPct>=35?"#d97706":"#dc2626",fontFamily:"Georgia,serif"}}>{fmtPct(overallMarginPct)}</div>
+          <div style={{background:C.espresso,borderRadius:16,padding:"20px 22px",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+              <div style={{fontSize:11,color:C.tan,letterSpacing:2,textTransform:"uppercase"}}>Financial Summary</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <input type="date" value={dateFrom} onChange={function(e){ setDateFrom(e.target.value); }}
+                  style={{border:"1px solid rgba(240,228,204,0.25)",borderRadius:7,padding:"4px 9px",fontFamily:"Georgia,serif",fontSize:11,color:C.cream,background:"rgba(255,255,255,0.08)",outline:"none"}}/>
+                <span style={{fontSize:11,color:C.tan,alignSelf:"center"}}>→</span>
+                <input type="date" value={dateTo} onChange={function(e){ setDateTo(e.target.value); }}
+                  style={{border:"1px solid rgba(240,228,204,0.25)",borderRadius:7,padding:"4px 9px",fontFamily:"Georgia,serif",fontSize:11,color:C.cream,background:"rgba(255,255,255,0.08)",outline:"none"}}/>
+                <select value={channelFilter} onChange={function(e){ setChannelFilter(e.target.value); }}
+                  style={{border:"1px solid rgba(240,228,204,0.25)",borderRadius:7,padding:"4px 9px",fontFamily:"Georgia,serif",fontSize:11,color:C.cream,background:"rgba(255,255,255,0.08)",outline:"none"}}>
+                  <option value="all">All Channels</option>
+                  {CHANNELS.map(function(c){ return <option key={c.id} value={c.id}>{c.label}</option>; })}
+                </select>
+                {(dateFrom||dateTo||channelFilter!=="all")&&(
+                  <button onClick={function(){ setDateFrom(""); setDateTo(""); setChannelFilter("all"); }}
+                    style={{border:"1px solid rgba(240,228,204,0.25)",borderRadius:7,padding:"4px 9px",fontFamily:"Georgia,serif",fontSize:11,color:C.tan,background:"transparent",cursor:"pointer"}}>
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{height:12,background:"rgba(0,0,0,0.06)",borderRadius:6,overflow:"hidden",marginBottom:6}}>
-              <div style={{height:"100%",width:Math.min(overallMarginPct,100)+"%",background:overallMarginPct>=60?C.green:overallMarginPct>=35?"#d97706":"#dc2626",borderRadius:6,transition:"width 0.6s"}}/>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:2,marginBottom:16}}>
+              {[
+                {l:"Revenue",v:fmt$(totals.revenue),color:C.cream,sub:totals.entries+" orders · "+totals.kg.toFixed(1)+"kg"},
+                {l:"Cost",v:fmt$(totals.cost),color:C.peach,sub:"green beans + wastage"},
+                {l:"Profit",v:fmt$(totals.margin),color:totals.margin>=0?"#86efac":"#fca5a5",sub:fmtPct(overallMarginPct)+" margin"},
+              ].map(function(card){ return (
+                <div key={card.l} style={{textAlign:"center",padding:"10px 6px"}}>
+                  <div style={{fontSize:9,color:C.tan,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>{card.l}</div>
+                  <div style={{fontSize:26,fontWeight:900,color:card.color,fontFamily:"Georgia,serif",lineHeight:1}}>{card.v}</div>
+                  <div style={{fontSize:10,color:"#a87c6a",marginTop:4}}>{card.sub}</div>
+                </div>
+              ); })}
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:C.mocha}}>
-              <span>0%</span><span style={{color:"#dc2626"}}>33% (Flavor)</span><span style={{color:"#d97706"}}>40% (Wholesale)</span><span style={{color:C.green}}>75% (Retail)</span><span>100%</span>
+
+            <div style={{background:"rgba(0,0,0,0.2)",borderRadius:8,overflow:"hidden",marginBottom:6}}>
+              <div style={{height:10,width:Math.min(overallMarginPct,100)+"%",background:overallMarginPct>=60?"#86efac":overallMarginPct>=35?"#fbbf24":"#fca5a5",borderRadius:8,transition:"width 0.6s"}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#a87c6a"}}>
+              <span>0%</span>
+              <span>33% Flavor</span>
+              <span>40% Wholesale</span>
+              <span>75% Retail</span>
+              <span>100%</span>
             </div>
           </div>
 
           
           {channelBreakdown.length>0&&(
-            <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.espresso,marginBottom:12,fontFamily:"Georgia,serif"}}>Revenue by Channel</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:12}}>
-                {channelBreakdown.map(function(ch,i){ return (
-                  <div key={ch.id} style={{background:C.cream,borderRadius:10,padding:"10px 12px",border:"1px solid "+C.tan}}>
-                    <div style={{fontSize:13,marginBottom:3}}>{ch.icon}</div>
-                    <div style={{fontSize:11,color:C.mocha,marginBottom:2}}>{ch.label}</div>
-                    <div style={{fontSize:18,fontWeight:900,color:BAR_COLORS[i],fontFamily:"Georgia,serif"}}>{fmt$(ch.rev)}</div>
-                    <div style={{fontSize:10,color:C.mocha}}>{fmtPct(ch.marginPct)} margin · {ch.kg.toFixed(1)}kg</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              {channelBreakdown.map(function(ch,i){
+                var clr=BAR_COLORS[i%BAR_COLORS.length];
+                return (
+                  <div key={ch.id} style={{flex:"1 1 120px",background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:10,padding:"10px 14px"}}>
+                    <div style={{fontSize:11,color:C.mocha,marginBottom:2}}>{ch.icon} {ch.label}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:clr,fontFamily:"Georgia,serif"}}>{fmt$(ch.rev)}</div>
+                    <div style={{fontSize:10,color:C.mocha}}>{fmtPct(ch.marginPct)} margin · {ch.kg.toFixed(1)}kg · {ch.orders} orders</div>
                   </div>
-                ); })}
-              </div>
-              <BarChart data={channelBreakdown} valueKey="rev" labelKey="label" fmt={fmt$}/>
+                );
+              })}
             </div>
           )}
 
           
-          {productBreakdown.length>0&&(
-            <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.espresso,marginBottom:10,fontFamily:"Georgia,serif"}}>Revenue by Product Type</div>
-              <BarChart data={productBreakdown} valueKey="rev" labelKey="label" fmt={fmt$}/>
-              <div style={{marginTop:12,display:"flex",flexWrap:"wrap",gap:6}}>
-                {productBreakdown.map(function(p,i){ return (
-                  <div key={p.label} style={{background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"6px 10px",fontSize:10}}>
-                    <span style={{color:BAR_COLORS[i%BAR_COLORS.length],fontWeight:700}}>{p.label}</span>
-                    <span style={{color:C.mocha}}> · {p.count} orders · {fmtPct(p.marginPct)} margin</span>
-                  </div>
-                ); })}
+          <Section id="breakdown" title="Revenue Breakdown" badge={channelBreakdown.length+" channels"}>
+            {channelBreakdown.length>0&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:10,color:C.mocha,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>By Channel</div>
+                <BarChart data={channelBreakdown} valueKey="rev" labelKey="label" fmt={fmt$}/>
               </div>
-            </div>
-          )}
-
-          
-          {monthlyTrend.length>0&&(
-            <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:11,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>Monthly Revenue Trend</div>
-                <div style={{fontSize:11,color:C.mocha}}>{monthlyTrend.length} months</div>
-              </div>
-              <SparkLine data={monthlyTrend}/>
-              {monthlyTrend.length>1&&(
-                <div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>
-                  <div style={{fontSize:10,color:C.mocha}}>Best month: <b style={{color:C.red}}>{monthlyTrend.reduce(function(a,b){ return b.revenue>a.revenue?b:a; }).month} · {fmt$(Math.max.apply(null,monthlyTrend.map(function(m){ return m.revenue; })))}</b></div>
-                  <div style={{fontSize:10,color:C.mocha}}>Avg/month: <b style={{color:C.espresso}}>{fmt$(totals.revenue/monthlyTrend.length)}</b></div>
+            )}
+            {productBreakdown.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:C.mocha,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>By Product Type</div>
+                <BarChart data={productBreakdown} valueKey="rev" labelKey="label" fmt={fmt$}/>
+                <div style={{marginTop:10,display:"flex",flexWrap:"wrap",gap:6}}>
+                  {productBreakdown.map(function(p,i){ return (
+                    <div key={p.label} style={{background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"5px 10px",fontSize:10}}>
+                      <span style={{color:BAR_COLORS[i%BAR_COLORS.length],fontWeight:700}}>{p.label}</span>
+                      <span style={{color:C.mocha}}> · {p.count} orders · {fmtPct(p.marginPct)} margin</span>
+                    </div>
+                  ); })}
                 </div>
-              )}
-            </div>
-          )}
-
-          
-          {topClients.length>0&&(
-            <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.espresso,marginBottom:10,fontFamily:"Georgia,serif"}}>Top Clients by Revenue</div>
-              <BarChart data={topClients} valueKey="revenue" labelKey="client" fmt={fmt$}/>
-              <div style={{marginTop:10,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:6}}>
-                {topClients.slice(0,4).map(function(c,i){ return (
-                  <div key={c.client} style={{background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"8px 10px"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.client}</div>
-                    <div style={{fontSize:10,color:C.mocha}}>{c.orders} orders · {c.kg.toFixed(1)}kg</div>
-                    <div style={{fontSize:15,fontWeight:700,color:BAR_COLORS[i],fontFamily:"Georgia,serif"}}>{fmt$(c.revenue)}</div>
-                  </div>
-                ); })}
               </div>
-            </div>
+            )}
+          </Section>
+
+          <Section id="beans" title="Bean & Cost Breakdown" badge={beanCosts.length+" origins"}>
+            {topClients.length>0&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:10,color:C.mocha,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Top Clients by Revenue</div>
+                <BarChart data={topClients} valueKey="revenue" labelKey="client" fmt={fmt$}/>
+              </div>
+            )}
+            {beanCosts.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:C.mocha,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Green Bean Cost by Origin</div>
+                <BarChart data={beanCosts} valueKey="cost" labelKey="origin" fmt={fmt$}/>
+                <div style={{marginTop:8,fontSize:11,color:C.mocha}}>
+                  Total wastage: <b style={{color:"#dc2626"}}>{fmt$(totals.wasteCost)}</b>
+                  <span style={{color:C.tan}}> ({totals.kg>0?((totals.wasteCost/totals.cost)*100).toFixed(1):0}% of cost)</span>
+                </div>
+              </div>
+            )}
+          </Section>
+
+          {monthlyTrend.length>=2&&(
+            <Section id="trend" title="Monthly Revenue Trend" badge={monthlyTrend.length+" months"}>
+              <SparkLine data={monthlyTrend}/>
+              <div style={{display:"flex",gap:14,marginTop:10,flexWrap:"wrap"}}>
+                <div style={{fontSize:11,color:C.mocha}}>Best: <b style={{color:C.red}}>{monthlyTrend.reduce(function(a,b){ return b.revenue>a.revenue?b:a; }).month} · {fmt$(Math.max.apply(null,monthlyTrend.map(function(m){ return m.revenue; })))}</b></div>
+                <div style={{fontSize:11,color:C.mocha}}>Avg/month: <b style={{color:C.espresso}}>{fmt$(totals.revenue/monthlyTrend.length)}</b></div>
+              </div>
+            </Section>
           )}
 
-          
-          {beanCosts.length>0&&(
-            <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.espresso,marginBottom:10,fontFamily:"Georgia,serif"}}>Green Bean Cost by Origin</div>
-              <BarChart data={beanCosts} valueKey="cost" labelKey="origin" fmt={fmt$}/>
-              <div style={{marginTop:8,fontSize:10,color:C.mocha}}>Total wastage cost: <b style={{color:"#dc2626"}}>{fmt$(totals.wasteCost)}</b> ({totals.kg>0?((totals.wasteCost/totals.cost)*100).toFixed(1):0}% of total cost)</div>
+          <Section id="entries" title={"All Entries"} badge={filtered.length+" orders"}>
+            <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+              <select value={sortBy} onChange={function(e){ setSortBy(e.target.value); }}
+                style={{border:"1.5px solid "+C.tan,borderRadius:8,padding:"5px 10px",fontFamily:"Georgia,serif",fontSize:11,color:C.dark,background:C.white,outline:"none"}}>
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="revenue-desc">Highest Revenue</option>
+                <option value="margin-desc">Highest Margin</option>
+                <option value="weight-desc">Most Volume</option>
+              </select>
             </div>
-          )}
-
-          
-          <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:12,padding:"14px",marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,color:C.espresso,marginBottom:10,fontFamily:"Georgia,serif"}}>All Entries ({filtered.length})</div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Georgia,serif"}}>
                 <thead>
                   <tr style={{background:C.espresso,color:C.cream}}>
-                    {["Date","Client","Channel","Format","Weight","Revenue","Cost","Margin","Margin %"].map(function(h){ return (
+                    {["Date","Client","Channel","Weight","Revenue","Cost","Profit","Margin %"].map(function(h){ return (
                       <th key={h} style={{padding:"7px 10px",textAlign:"left",fontWeight:700,fontSize:10,letterSpacing:1,textTransform:"uppercase",whiteSpace:"nowrap"}}>{h}</th>
                     ); })}
                   </tr>
@@ -2029,830 +2027,45 @@ function FinanceTab({ log, inventory }){
                   {filtered.map(function(e,i){
                     var f=entryFinance(e);
                     var ch=CHANNELS.find(function(c){ return c.id===(e.channel||"retail"); })||CHANNELS[0];
+                    var hasRev = f.revenue>0;
                     return (
-                      <tr key={e.id} style={{background:i%2===0?"transparent":C.cream+"88"}}>
-                        <td style={{padding:"7px 10px",color:C.mocha,whiteSpace:"nowrap"}}>{new Date(e.id).toLocaleDateString()}</td>
-                        <td style={{padding:"7px 10px",fontWeight:700,color:C.espresso}}>{e.client||"—"}</td>
-                        <td style={{padding:"7px 10px"}}><span style={{background:C.cream,border:"1px solid "+C.tan,borderRadius:20,padding:"2px 8px",fontSize:10}}>{ch.icon} {ch.label}</span></td>
-                        <td style={{padding:"7px 10px",color:C.mocha}}>{e.format||"—"}</td>
-                        <td style={{padding:"7px 10px",color:C.espresso,whiteSpace:"nowrap"}}>{(e.grams/1000).toFixed(2)}kg</td>
-                        <td style={{padding:"7px 10px",fontWeight:700,color:f.revenue>0?C.green:C.mocha}}>{f.revenue>0?fmt$(f.revenue):"—"}</td>
-                        <td style={{padding:"7px 10px",color:"#dc2626"}}>{f.totalCost>0?fmt$(f.totalCost):"—"}</td>
-                        <td style={{padding:"7px 10px",fontWeight:700,color:f.margin>=0?C.green:"#dc2626"}}>{f.revenue>0?(f.margin>=0?"+":"")+fmt$(f.margin):"—"}</td>
-                        <td style={{padding:"7px 10px",fontWeight:700,color:f.marginPct>=60?C.green:f.marginPct>=35?"#d97706":"#dc2626"}}>{f.revenue>0?fmtPct(f.marginPct):"—"}</td>
+                      <tr key={e.id} style={{background:i%2===0?"transparent":C.cream+"88",borderBottom:"1px solid "+C.tan+"50"}}>
+                        <td style={{padding:"8px 10px",color:C.mocha,whiteSpace:"nowrap"}}>{new Date(e.id).toLocaleDateString("en-CA",{month:"short",day:"numeric"})}</td>
+                        <td style={{padding:"8px 10px",fontWeight:700,color:C.espresso,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.client||"—"}</td>
+                        <td style={{padding:"8px 10px"}}>
+                          <span style={{fontSize:10,padding:"2px 7px",borderRadius:8,background:(e.channel==="retail"?"#D9503520":e.channel==="wholesale"?"#2563eb20":"#7c3aed20"),color:(e.channel==="retail"?"#D95035":e.channel==="wholesale"?"#2563eb":"#7c3aed"),fontWeight:700}}>{ch.label}</span>
+                        </td>
+                        <td style={{padding:"8px 10px",color:C.mocha}}>{(e.grams/1000).toFixed(2)}kg</td>
+                        <td style={{padding:"8px 10px",fontWeight:700,color:hasRev?C.green:C.tan}}>{hasRev?fmt$(f.revenue):"—"}</td>
+                        <td style={{padding:"8px 10px",color:f.totalCost>0?C.espresso:C.tan}}>{f.totalCost>0?fmt$(f.totalCost):"—"}</td>
+                        <td style={{padding:"8px 10px",fontWeight:700,color:f.margin>0?C.green:f.margin<0?"#dc2626":C.tan}}>{hasRev?(f.margin>=0?"+":"")+fmt$(f.margin):"—"}</td>
+                        <td style={{padding:"8px 10px",fontWeight:700,color:f.marginPct>=60?C.green:f.marginPct>=35?"#d97706":"#dc2626"}}>{hasRev?fmtPct(f.marginPct):"—"}</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr style={{background:C.espresso,color:C.cream,fontWeight:700}}>
-                    <td colSpan={4} style={{padding:"8px 10px",fontSize:11}}>TOTAL ({filtered.length} orders)</td>
-                    <td style={{padding:"8px 10px",whiteSpace:"nowrap"}}>{totals.kg.toFixed(2)}kg</td>
+                    <td colSpan={3} style={{padding:"8px 10px",fontSize:11}}>TOTAL ({filtered.length} orders)</td>
+                    <td style={{padding:"8px 10px"}}>{totals.kg.toFixed(2)}kg</td>
                     <td style={{padding:"8px 10px",color:"#86efac"}}>{fmt$(totals.revenue)}</td>
-                    <td style={{padding:"8px 10px",color:"#fca5a5"}}>{fmt$(totals.cost)}</td>
-                    <td style={{padding:"8px 10px",color:totals.margin>=0?"#86efac":"#fca5a5"}}>{(totals.margin>=0?"+":"")+fmt$(totals.margin)}</td>
-                    <td style={{padding:"8px 10px",color:overallMarginPct>=60?"#86efac":overallMarginPct>=35?"#fde68a":"#fca5a5"}}>{fmtPct(overallMarginPct)}</td>
+                    <td style={{padding:"8px 10px",color:C.peach}}>{fmt$(totals.cost)}</td>
+                    <td style={{padding:"8px 10px",color:totals.margin>=0?"#86efac":"#fca5a5"}}>{totals.margin>=0?"+":""}{fmt$(totals.margin)}</td>
+                    <td style={{padding:"8px 10px",color:overallMarginPct>=60?"#86efac":overallMarginPct>=35?"#fbbf24":"#fca5a5"}}>{fmtPct(overallMarginPct)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
-          </div>
+          </Section>
 
-          
-          <button onClick={exportFinanceCSV} style={{width:"100%",padding:12,background:C.espresso,color:C.cream,border:"none",borderRadius:12,fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:1}}>
+          <button onClick={exportFinanceCSV}
+            style={{width:"100%",padding:"13px",background:C.espresso,color:C.cream,border:"none",borderRadius:12,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,letterSpacing:1,marginTop:4}}>
             ↓ Export Finance Report (CSV)
           </button>
+
         </div>
       )}
     </div>
-  );
-}
-
-// ════════════════ MAIN APP ════════════════
-function RoastCalc(){
-  const [client,setClient]=useState("");
-  const [amount,setAmount]=useState("");
-  const [unit,setUnit]=useState("g");
-  const [slots,setSlots]=useState([]);
-  const [pickerOpen,setPickerOpen]=useState(false);
-  const [roastLevel,setRoastLevel]=useState("medium");
-  const [customLoss,setCustomLoss]=useState(null);
-  const [format,setFormat]=useState("drip");
-  const [customFields,setCustomFields]=useState({name:"",type:"",capacity:"",roastTime:"",coolTime:""});
-  const [roundStates,setRoundStates]=useState({});
-  const [roundNotes,setRoundNotes]=useState({});
-  const [log,setLog]=useState([]);
-  const [schedule,setSchedule]=useState([]);
-  const [activeTab,setActiveTab]=useState("calc");
-  const [logSearch,setLogSearch]=useState("");
-  const [logStatusFilter,setLogStatusFilter]=useState("all");
-  const [storageReady,setStorageReady]=useState(false);
-  const [beanCatalog,setBeanCatalog]=useState(DEFAULT_BEAN_CATALOG); // user can add/delete beans
-  // Inventory
-  const [inventory,setInventory]=useState([
-    { id:"guji-g2",        origin:"Guji G2",                     supplier:"United Beans Inc.", processing:"Washed",    stockG:49380, costPerKg:16.20, lowAlertKg:5,  notes:"United Beans Inc. · Washed" },
-    { id:"ethiopian-elto", origin:"Ethiopian Elto G1",            supplier:"Showroom Coffee",   processing:"Natural",   stockG:29880, costPerKg:19.93, lowAlertKg:5,  notes:"Showroom Coffee · Natural" },
-    { id:"kenya-ndiara",   origin:"Kenya Ndiara FCS Week 15PB",   supplier:"Showroom Coffee",   processing:"Washed",    stockG:29880, costPerKg:26.37, lowAlertKg:5,  notes:"Showroom Coffee · Washed" },
-    { id:"paraiso-92",     origin:"Paraiso 92 Red Bourbon P-02",  supplier:"Cafe Marcarena",    processing:"Anaerobic", stockG:18050, costPerKg:21.94, lowAlertKg:3,  notes:"Cafe Marcarena · Anaerobic" },
-    { id:"lekempti-g4",   origin:"Lekempti G4",                  supplier:"Various",           processing:"Various",   stockG:0,     costPerKg:13.76, lowAlertKg:0,  notes:"KNDZ supply bean" },
-  ]); // [{id,origin,stockG,costPerKg,lowAlertKg,notes,supplier,processing}]
-  // Cost settings (persisted)
-  const [costs,setCosts]=useState({greenCostPerKg:16.20,packagingCostPerUnit:0.234,packagingFlatOverride:null,hourlyRate:25}); // drip bag avg from Hebei/Wenzhou
-  const [showCosts,setShowCosts]=useState(false);
-  // Packaging inventory
-  const [packagingInv,setPackagingInv]=useState([
-    { id:"drip-bag",   name:"Drip Bags",   icon:"💧", stock:0, unit:"bags",  lowAlert:500 },
-    { id:"steep-pack", name:"Steep Packs", icon:"🧃", stock:0, unit:"packs", lowAlert:500 },
-    { id:"pouch-250g", name:"250g Pouches",icon:"🫘", stock:0, unit:"pouches",lowAlert:100 },
-  ]);
-  // Calculator mode & bean selection
-  const [calcMode,setCalcMode]=useState("single");    // "single" | "multi"
-  // Multi-track session state persisted across tab switches
-  const [mtTracks,setMtTracks]=useState(null);           // null = not initialized
-  const [mtSessionName,setMtSessionName]=useState("");
-  const [mtGlobalTimer,setMtGlobalTimer]=useState(0);
-  const [mtSessionRunning,setMtSessionRunning]=useState(false);
-  const [mtSavedIds,setMtSavedIds]=useState([]);  // array of saved track IDs
-  const [orderMode,setOrderMode]=useState("units");   // "units" | "weight"
-  const [channel,setChannel]=useState("retail");       // "retail" | "wholesale" | "flavor"
-  const [marginPct,setMarginPct]=useState(75);          // margin %
-  const [unitCount,setUnitCount]=useState("");
-  const [gramsPerUnit,setGramsPerUnit]=useState(15);   // default drip/steep = 15g, whole = 250g
-  const [selectedBeanId,setSelectedBeanId]=useState(null);
-  const [showBeanPicker,setShowBeanPicker]=useState(false);
-
-  useEffect(()=>{
-    const db = window.__db;
-    const keys = [
-      ["log", setLog],["schedule", setSchedule],["inventory", setInventory],
-      ["costs", setCosts],["beanCatalog", setBeanCatalog],["packagingInv", setPackagingInv],
-    ];
-    Promise.all(keys.map(([key])=>db.collection("untamed-roastery").doc(key).get()))
-      .then(snaps=>{
-        snaps.forEach((snap,i)=>{ if(snap.exists&&snap.data()&&snap.data().value!=null) keys[i][1](snap.data().value); });
-        setStorageReady(true);
-      }).catch(()=>setStorageReady(true));
-    const unsubs = keys.map(([key,setter])=>
-      db.collection("untamed-roastery").doc(key).onSnapshot(snap=>{
-        if(snap.exists&&snap.data()&&snap.data().value!=null) setter(snap.data().value);
-      })
-    );
-    return ()=>unsubs.forEach(u=>u());
-  },[]);
-  function fbSet(key,value){ if(!storageReady||!window.__db)return; window.__db.collection("untamed-roastery").doc(key).set({value}).catch(()=>{}); }
-  useEffect(()=>{ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
-  useEffect(()=>{ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
-  useEffect(()=>{ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
-  useEffect(()=>{ if(!storageReady)return; fbSet("costs",costs); },[costs,storageReady]);
-  useEffect(()=>{ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
-  useEffect(()=>{ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
-
-  // Derived grams from either mode
-  const gramsFromUnits = orderMode==="units" && unitCount ? parseFloat(unitCount)*gramsPerUnit : 0;
-  const gramsFromWeight = orderMode==="weight" && amount ? (unit==="kg"?parseFloat(amount)*1000:parseFloat(amount)) : 0;
-  const grams = orderMode==="units" ? gramsFromUnits : gramsFromWeight;
-  // Selected bean
-  const selectedBean = inventory.find(b=>b.id===selectedBeanId)||null;
-  const level=ROAST_LEVELS.find(r=>r.id===roastLevel);
-  const effectiveLoss=customLoss!=null?customLoss/100:(level?.loss||0.16);
-
-  function resolveSlot(slot){
-    const base=MACHINES.find(m=>m.id===slot.id)||MACHINES[0];
-    if(slot.id==="custom"){
-      const rt=parseFloat(customFields.roastTime)||12;
-      return {...base,model:customFields.name||"My Machine",type:customFields.type||"Custom",capacity:parseFloat(customFields.capacity)||0,rt:{light:rt-2,"medium-light":rt-1,medium:rt,"medium-dark":rt+1,dark:rt+2},cool:parseFloat(customFields.coolTime)||6,qty:slot.qty};
-    }
-    return {...base,qty:slot.qty};
-  }
-  const resolved=slots.map(resolveSlot);
-  const roastedCapPerRound=resolved.reduce((s,m)=>s+((m.capacity||0)*m.qty*(1-effectiveLoss)),0);
-  const slowestRT=resolved.length>0?Math.max(...resolved.map(m=>m.rt?.[roastLevel]||12)):12;
-  const slowestCool=resolved.length>0?Math.max(...resolved.map(m=>m.cool||6)):6;
-  const timePerRound=slowestRT+slowestCool;
-  const rounds=roastedCapPerRound>0?Math.ceil(grams/roastedCapPerRound):0;
-  const totalRoastT=rounds*slowestRT;
-  const totalCoolT=rounds*slowestCool;
-  const totalTime=rounds*timePerRound;
-  const totalRoasted=roastedCapPerRound*rounds;
-  const wastage=Math.round(totalRoasted-grams);
-  const greenNeeded=grams/(1-effectiveLoss);
-  const canCompute=grams>0&&roastedCapPerRound>0;
-  // Cost breakdown (live)
-  const greenKg = greenNeeded/1000;
-  const beanCostPerKg = selectedBean?.costPerKg || costs.greenCostPerKg || 0;
-  const greenCost = greenKg * beanCostPerKg;
-  const unitsPerKg = format==="whole"?4 : format==="drip"?Math.round(1000/gramsPerUnit):Math.round(1000/gramsPerUnit);
-  const packagingUnits = orderMode==="units" ? (parseFloat(unitCount)||0) : Math.ceil((grams/1000)*unitsPerKg);
-  const packagingPerUnit = packagingUnits * (costs.packagingCostPerUnit||0);
-  const packagingCost = (costs.packagingFlatOverride!=null && costs.packagingFlatOverride!==""
-    ? parseFloat(costs.packagingFlatOverride)
-    : packagingPerUnit);
-  const labourCost = (totalTime/60)*(costs.hourlyRate||0);
-  const totalCost = greenCost + packagingCost + labourCost;
-  const costPerG = grams>0 ? totalCost/grams : 0;
-  const doneCount=Object.values(roundStates).filter(Boolean).length;
-  const hasCustom=slots.some(s=>s.id==="custom");
-
-  useEffect(()=>{setRoundStates({});setRoundNotes({});},[rounds]);
-
-  const aiLines=canCompute?[
-    `For the **${client||"order"}**: **${fmtW(grams)}** of **${level?.label}** roast (${FORMATS.find(f=>f.id===format)?.label}).`,
-    `Running **${resolved.map(m=>`${m.qty}× ${m.model}`).join(" + ")}** in parallel — **${rounds} round${rounds!==1?"s":""}** totalling **${fmtT(totalTime)}** (${fmtT(totalRoastT)} roasting + ${fmtT(totalCoolT)} cooling).`,
-    `Source **${fmtW(Math.ceil(greenNeeded))} green beans** — accounts for ~${Math.round(effectiveLoss*100)}% roast-loss at this level.`,
-    wastage>100?`You'll have **${fmtW(wastage)}** of overage — ideal for QC cupping or samples.`:`Minimal wastage of **${fmtW(wastage)}** — tight and efficient.`,
-    resolved.length>1?`⚡ Bottleneck: **${resolved.find(m=>(m.rt?.[roastLevel]||12)===slowestRT)?.model}** at ${slowestRT}min/batch.`:resolved[0]?.qty>1?`⚡ ${resolved[0].qty}× ${resolved[0].model} running in parallel.`:null,
-  ].filter(Boolean):null;
-
-  function addSlot(id){setSlots(p=>[...p,{id,qty:1}]);setPickerOpen(false);}
-  function removeSlot(i){setSlots(p=>p.filter((_,j)=>j!==i));}
-  function setQty(i,q){setSlots(p=>p.map((s,j)=>j===i?{...s,qty:Math.max(1,q)}:s));}
-  function toggleRound(i){
-    const wasOn = !!roundStates[i];
-    setRoundStates(p=>({...p,[i]:!p[i]}));
-    // Real-time inventory deduction per round
-    if(selectedBeanId && rounds > 0){
-      const greenPerRound = greenNeeded / rounds;
-      const delta = wasOn ? +greenPerRound : -greenPerRound; // undo if unchecking
-      setInventory(p=>p.map(b=>b.id===selectedBeanId
-        ? {...b, stockG: Math.max(0, b.stockG + delta)}
-        : b
-      ));
-    }
-  }
-  function setNote(i,n){setRoundNotes(p=>({...p,[i]:n}));}
-
-  function saveLog(){
-    if(!canCompute)return;
-    const fmtLabel=FORMATS.find(f=>f.id===format)?.label||"";
-    const entry={
-      id:Date.now(),client,grams,
-      roastLevel,
-      machines:resolved.map(m=>`${m.qty}× ${m.model}`).join(", "),
-      level:level?.label,lossPercent:Math.round(effectiveLoss*100),
-      rounds,greenNeeded:Math.ceil(greenNeeded),totalTime,roastTime:totalRoastT,coolTime:totalCoolT,wastage,
-      format:fmtLabel,status:"pending",orderNote:"",
-      beanOrigin:selectedBean?.origin||null,
-      beanOriginId:selectedBeanId||null,
-      greenCostPerKg:beanCostPerKg||null,
-      totalCost:totalCost>0?totalCost:null,
-      costPerKg:costPerG>0?costPerG*1000:null,
-      channel:channel||"retail",marginPct:marginPct||75,
-      sellPricePerKg:(totalCost>0&&grams>0)?(totalCost/grams*1000)/(1-(marginPct||75)/100):null,
-      margin:(totalCost>0&&grams>0)?((totalCost/grams*1000)/(1-(marginPct||75)/100))*(grams/1000)-totalCost:null,
-      unitCount:orderMode==="units"?parseFloat(unitCount)||0:null,
-      gramsPerUnit:orderMode==="units"?gramsPerUnit:null,
-    };
-    setLog(p=>[entry,...p]);
-    // Note: green bean inventory is already deducted in real-time per round via toggleRound
-    // Only deduct any remaining rounds that weren't manually checked off
-    if(selectedBeanId && rounds > 0){
-      const uncheckedRounds = rounds - doneCount;
-      if(uncheckedRounds > 0){
-        const greenPerRound = greenNeeded / rounds;
-        const remaining = greenPerRound * uncheckedRounds;
-        setInventory(p=>p.map(b=>b.id===selectedBeanId
-          ? {...b, stockG: Math.max(0, b.stockG - remaining)}
-          : b
-        ));
-      }
-    }
-    // Deduct packaging inventory
-    if(packagingUnits>0){
-      const pkgId = format==="drip"?"drip-bag":format==="steep"?"steep-pack":"pouch-250g";
-      setPackagingInv(p=>p.map(pk=>pk.id===pkgId
-        ? {...pk, stock:Math.max(0, pk.stock - packagingUnits)}
-        : pk
-      ));
-    }
-    setActiveTab("log");
-  }
-
-  function deleteEntry(id){setLog(p=>p.filter(e=>e.id!==id));}
-  function updateEntry(updated){setLog(p=>p.map(e=>e.id===updated.id?updated:e));}
-
-  const filteredLog=log.filter(e=>{
-    const matchSearch=!logSearch||e.client?.toLowerCase().includes(logSearch.toLowerCase())||e.machines?.toLowerCase().includes(logSearch.toLowerCase());
-    const matchStatus=logStatusFilter==="all"||e.status===logStatusFilter;
-    return matchSearch&&matchStatus;
-  });
-
-  function exportCSV(){
-    function buildCSV(entries){
-      const H=["Date","Time","Client","Channel","Format","Roast Level","Roasted Weight (g)","Roasted Weight (kg)","Machines","Rounds","Roast Time (min)","Cool Time (min)","Total Time (min)","Green Beans Needed (g)","Wastage (g)","Loss %","Sell Price ($/kg)","Total Revenue ($)","Total Cost ($)","Gross Profit ($)","Margin %","Bean Origin","Status","Notes"];
-      const R=entries.map(function(e){
-        const d=new Date(e.id);
-        const kg=(e.grams/1000);
-        const ch=typeof CHANNELS!=="undefined"?CHANNELS.find(function(c){ return c.id===(e.channel||"retail"); }):null;
-        const sellPricePerKg=e.sellPricePerKg||0;
-        const revenue=sellPricePerKg*kg;
-        const cost=e.totalCost||0;
-        const profit=revenue-cost;
-        const marginPct=revenue>0?((profit/revenue)*100).toFixed(1):"";
-        function q(v){ return '"'+String(v||"").replace(/"/g,'""')+'"'; }
-        return [
-          d.toLocaleDateString(),
-          d.toLocaleTimeString(),
-          q(e.client),
-          q(ch?ch.label:(e.channel||"retail")),
-          q(e.format),
-          q(e.level),
-          e.grams||0,
-          kg.toFixed(3),
-          q(e.machines),
-          e.rounds||0,
-          e.roastTime||"",
-          e.coolTime||"",
-          e.totalTime||0,
-          e.greenNeeded||0,
-          e.wastage||0,
-          (e.lossPercent||16)+"%",
-          sellPricePerKg>0?sellPricePerKg.toFixed(2):"",
-          revenue>0?revenue.toFixed(2):"",
-          cost>0?cost.toFixed(2):"",
-          revenue>0?profit.toFixed(2):"",
-          marginPct,
-          q(e.beanOrigin),
-          q(e.status),
-          q(e.orderNote),
-        ];
-      });
-      var NL=String.fromCharCode(10); return [H,...R].map(function(r){ return r.join(","); }).join(NL);
-    }
-    const csv=buildCSV(filteredLog);
-    const blob=new Blob([csv],{type:"text/csv"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");a.href=url;a.download="untamed-roast-log.csv";a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  const totalOrders=log.length;
-  const totalKgRoasted=log.reduce((s,e)=>s+(e.grams/1000),0);
-  const totalRevenue=log.filter(e=>e.sellPricePerKg!=null).reduce((s,e)=>s+((e.sellPricePerKg||0)*(e.grams/1000)),0);
-  const pendingCount=log.filter(e=>e.status==="pending"||e.status==="in-progress").length;
-
-  const TABS=[
-    {id:"calc",     label:"⚙️ Calculator"},
-    {id:"log",      label:`📋 Order Log${log.length>0?` (${log.length})`:""}`},
-    {id:"calendar", label:`📅 Calendar${schedule.length>0?` (${schedule.length})`:""}`},
-    {id:"inventory",label:`🌱 Inventory${inventory.length>0?` (${inventory.length})`:""}`},
-    {id:"finance",  label:"💰 Finance"},
-  ];
-
-  return (
-    <div style={{minHeight:"100vh",background:C.cream,fontFamily:"Georgia,serif",color:C.dark,paddingBottom:60}}>
-      <style>{`
-        @keyframes fi{to{opacity:1;}} .ailn{opacity:0;animation:fi 0.4s forwards;margin:0 0 9px;font-size:13px;color:${C.cream};line-height:1.9;}
-        input:focus,textarea:focus,select:focus{outline:none;}
-        .inp{border:1.5px solid ${C.tan};border-radius:10px;padding:10px 14px;width:100%;font-family:Georgia,serif;font-size:14px;color:${C.dark};background:rgba(255,255,255,0.85);box-sizing:border-box;transition:border-color 0.2s;}
-        .inp:focus{border-color:${C.red};}
-        .savebtn{width:100%;padding:15px;background:${C.red};color:${C.cream};border:none;border-radius:12px;font-family:Georgia,serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.2s;}
-        .savebtn:hover{background:${C.espresso};}
-        .statcard{background:rgba(255,255,255,0.85);border:1.5px solid ${C.tan};border-radius:14px;padding:18px 12px;text-align:center;}
-        button{transition:all 0.15s;}
-        ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-track{background:${C.cream};} ::-webkit-scrollbar-thumb{background:${C.tan};border-radius:3px;}
-      `}</style>
-
-      {pickerOpen&&<MachinePicker onSelect={addSlot} onClose={()=>setPickerOpen(false)} existing={slots.map(s=>s.id)}/>}
-
-      
-      <div style={{background:C.dark,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`3px solid ${C.red}`,flexWrap:"wrap",gap:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABQAFADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAUHBAYBAgMI/8QAKxAAAgEEAQQBAgYDAAAAAAAAAQIDAAQFESEGEhMxIhRBFTJRYXGRByPB/8QAGgEBAAIDAQAAAAAAAAAAAAAAAAMFAgQGAf/EACkRAAICAQMCBQQDAAAAAAAAAAABAhEDEiExBFEFFEFhoRMWMpGBsdH/2gAMAwEAAhEDEQA/APqOlKVUm6KUpQClKUApSlAKUpQClKUApSozqvJyYXpu/wArFEkz2sJkVHJCsdjgkfzXjaStmWOEsk1CPL2MNOs+l3tLm6XNW3htpRFM3y+LEkDjWyDo6I44rlusumFtrW5OZtvFdyGOFvl8mB0eNbABIGzxVBZWWa7upvpcMuOW7kDNGjN2b3sAF+FGzvVc4meWzu4GucMmRWzkJRHZuze9kErww3zr/lVnnp3VL5Oy+2cGnVqd9rjfH65+D6apUb0vknzHTuPyskSRPdwLKyISQpP2BNSVWadq0cbODxycJcrYUpSvTEUpSgFYOfyNvicLd5O6ieWC2jMjogBLDY4G+PvWZI6xxtI50qgsTrfAGzUBkM/0tfWS2V9dxSW19EukkjcLKrKWUb0PYUkD3xWE5JLncnwYnOaeltJ712KDyl7YqL+1xL3ws7yZZDHcldr2kkeie47Ot8cfzXbE39ixx8GWa+azsZWdY7Yr8u5gx9kdp2NE88Vc+Nm/xzjme6srfHW7QoJTKbR9qD6ILL/WueD+le+bh6AuL6VcpaYuS7V4kceE+RmlG012jbdw3yN1WeVfOpHZPxuP4PBOu/rxX9NK7NgwWQgyuHtMlbRNFDcxCREYAFQfsdcVm1rlh1H0rY4+2t7S7W3tEi3CPBKEWMaPdsr+UbHPrmtjBBAIIII2CPvVnCSa5s4zPilCTelpNurFKUrMhFKUoDBz9/Bi8Nc39zHJJDEn+xY9dxBIXjZA+9V9bJ0zdY8RXH4tdWVuiW1w8qRFII274YtlfzAHbB039iTVj5KytsjYy2V5GZIJQA69xXeiD7HPsCoxuk+ny8rfh4HlJMqrK4V9t3aIB0QGJIHoE8VBlxyk9qosuj6rDhxtStNv07f7z8GpXl503JC91LdZOSDzxWbwnsRW8ELCNi+xoMrlhyO46H7ViyxYSzRfqbPNee1ntYEvJktw8RVFaNCe7QDKqE7/AEPI5rd26T6fIcCw7A8axOEmdQ6BSuiAdH4kg7975r3m6exMpctbOpeaOc9kzpp417EI0eNLwNVH9Gb5o2l4jgjstVfx7e/b97WV5GcHbK9gZc9FHZQS286CO3HjifxpKz9vK8Mu3PJ0deqszDzxXGLtpoIZIYWjAiR/YQcKfZ4IAI/Yio9OlMCiSKtiR5EkRz55NssgCuCe7ZBCj+t+6mYY0hhSKMEIihVBO9ADQ5NSYscoPc1eu6vHnitN37nalKVOVopSlAKUpQClKUApSlAKUpQH/9k=" alt="Untamed Roastery" style={{width:52,height:52,borderRadius:8,objectFit:"contain"}}/>
-          <div>
-            <div style={{fontSize:9,letterSpacing:4,color:C.mocha,textTransform:"uppercase",marginBottom:1}}>Untamed Roastery</div>
-            <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif"}}>Roast Calculator</div>
-          </div>
-        </div>
-        <div style={{display:"flex",background:"rgba(255,255,255,0.08)",borderRadius:12,padding:4,gap:3,flexWrap:"wrap"}}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"7px 10px",borderRadius:9,border:"none",cursor:"pointer",background:activeTab===t.id?C.red:"transparent",color:activeTab===t.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:11,fontWeight:activeTab===t.id?700:400,whiteSpace:"nowrap"}}>{t.label}</button>
-          ))}
-        </div>
-        <div style={{textAlign:"right",color:C.mocha,fontSize:11}}>
-          <div style={{color:C.red,fontSize:12,fontStyle:"italic",marginBottom:1}}>Multi-machine · Parallel scheduling</div>
-          <div>{new Date().toLocaleDateString("en-CA",{month:"long",day:"numeric",year:"numeric"})}</div>
-        </div>
-      </div>
-
-      
-      {activeTab==="calc"&&(
-        <div style={{maxWidth:880,margin:"0 auto",padding:"20px 14px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
-          
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {[
-              {id:"single",icon:"⚙️",label:"Single Order",hint:"One bean, one or more machines"},
-              {id:"multi", icon:"⚡",label:"Multi-Track",hint:"Multiple beans & machines at once"},
-            ].map(cm=>(
-              <button key={cm.id} onClick={()=>setCalcMode(cm.id)}
-                style={{padding:"12px 14px",borderRadius:12,border:`2px solid ${calcMode===cm.id?C.red:C.tan}`,cursor:"pointer",background:calcMode===cm.id?`${C.red}12`:"rgba(255,255,255,0.7)",textAlign:"left",transition:"all 0.2s"}}>
-                <div style={{fontSize:16,marginBottom:3}}>{cm.icon}</div>
-                <div style={{fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,color:calcMode===cm.id?C.red:C.espresso}}>{cm.label}</div>
-                <div style={{fontSize:11,color:C.mocha,marginTop:2}}>{cm.hint}</div>
-              </button>
-            ))}
-          </div>
-
-          {calcMode==="multi"&&(
-            <MultiTrackSession
-              inventory={inventory}
-              persistedTracks={mtTracks}
-              onTracksChange={setMtTracks}
-              sessionName={mtSessionName}
-              onSessionNameChange={setMtSessionName}
-              globalTimer={mtGlobalTimer}
-              onTimerChange={setMtGlobalTimer}
-              sessionRunning={mtSessionRunning}
-              onSessionRunningChange={setMtSessionRunning}
-              savedTrackIds={mtSavedIds}
-              onSavedTrackIdsChange={setMtSavedIds}
-              onSaveSession={function(entries){
-                setLog(function(p){ return [...entries,...p]; });
-              }}
-            />
-          )}
-
-          {calcMode==="single"&&(<>
-          
-          <div style={{display:"flex",background:"rgba(255,255,255,0.7)",borderRadius:12,padding:4,gap:4,marginBottom:20,border:`1.5px solid ${C.tan}`,width:"fit-content"}}>
-            {[{id:"units",label:"📦 By Unit Count",hint:"e.g. 4000 drip bags"},{id:"weight",label:"⚖️ By Weight",hint:"e.g. 5kg roasted"}].map(m=>(
-              <button key={m.id} onClick={()=>setOrderMode(m.id)} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:"pointer",background:orderMode===m.id?C.red:"transparent",color:orderMode===m.id?C.cream:C.mocha,fontFamily:"Georgia,serif",fontSize:13,fontWeight:orderMode===m.id?700:400}}>
-                {m.label} <span style={{fontSize:10,opacity:0.7}}>— {m.hint}</span>
-              </button>
-            ))}
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:18}}>
-            <div>
-              <SL>Client / Order</SL>
-              <input className="inp" value={client} onChange={e=>setClient(e.target.value)} placeholder="e.g. KNDZ, Wedding, Retail batch"/>
-            </div>
-            <div>
-              <SL>Sales Channel</SL>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {CHANNELS.map(ch=>(
-                  <button key={ch.id} onClick={()=>{setChannel(ch.id);setMarginPct(channelMargin(ch.id));}}
-                    style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:10,border:"2px solid "+(channel===ch.id?C.red:C.tan),background:channel===ch.id?C.red+"12":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:channel===ch.id?700:400,color:channel===ch.id?C.red:C.espresso}}>
-                    {ch.icon} {ch.label}
-                    <div style={{fontSize:10,color:channel===ch.id?C.red:C.mocha,marginTop:2}}>~{ch.defaultMargin}% margin</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <SL>Margin % Override</SL>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <input type="number" className="inp" value={marginPct} onChange={e=>setMarginPct(parseFloat(e.target.value)||0)} placeholder="75" style={{maxWidth:100}}/>
-                <span style={{fontSize:12,color:C.mocha}}>% override (default set by channel)</span>
-              </div>
-            </div>
-          </div>
-          <div style={{marginBottom:18}}>
-            {orderMode==="units"?(
-              <div>
-                <SL>Number of Units</SL>
-                <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
-                  <input className="inp" type="number" value={unitCount} onChange={e=>setUnitCount(e.target.value)} placeholder="e.g. 4000" style={{flex:1}}/>
-                  <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:"1.5px solid "+C.tan,flexShrink:0}}>
-                    {FORMATS.map(f=><button key={f.id} onClick={()=>{setFormat(f.id);setGramsPerUnit(f.id==="whole"?250:15);}} style={{padding:"0 7px",background:format===f.id?C.red:"transparent",color:format===f.id?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:format===f.id?700:400,whiteSpace:"nowrap"}}>{f.icon} {f.label}</button>)}
-                  </div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,background:"rgba(255,255,255,0.6)",border:"1px solid "+C.tan,borderRadius:10,padding:"7px 12px"}}>
-                  <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Grams per unit:</span>
-                  <input type="number" min="1" step="1" value={gramsPerUnit} onChange={e=>setGramsPerUnit(parseFloat(e.target.value)||15)} style={{width:60,border:"1.5px solid "+C.red,borderRadius:8,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:C.red,background:C.cream,textAlign:"center",outline:"none"}}/>
-                  <span style={{fontSize:11,color:C.mocha}}>g</span>
-                  <div style={{display:"flex",gap:4,marginLeft:4,flexWrap:"wrap"}}>
-                    {[{label:"drip/steep",g:15},{label:"whole",g:250}].map(p=>(
-                      <button key={p.g} onClick={()=>setGramsPerUnit(p.g)} style={{fontSize:10,background:gramsPerUnit===p.g?C.red+"20":"transparent",border:"1px solid "+(gramsPerUnit===p.g?C.red:C.tan),borderRadius:6,padding:"2px 7px",cursor:"pointer",color:gramsPerUnit===p.g?C.red:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{p.label} ({p.g}g)</button>
-                    ))}
-                  </div>
-                  {unitCount&&gramsPerUnit&&<span style={{marginLeft:"auto",fontSize:11,color:C.espresso,fontWeight:700,whiteSpace:"nowrap"}}>= {fmtW(parseFloat(unitCount)*gramsPerUnit)} roasted</span>}
-                </div>
-              </div>
-            ):(
-              <div>
-                <SL>Roasted Amount Needed</SL>
-                <div style={{display:"flex",gap:8}}>
-                  <input className="inp" type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 5000" style={{flex:1}}/>
-                  <div style={{display:"flex",background:"rgba(255,255,255,0.85)",borderRadius:10,overflow:"hidden",border:"1.5px solid "+C.tan}}>
-                    {["g","kg"].map(u=><button key={u} onClick={()=>setUnit(u)} style={{padding:"0 16px",background:unit===u?C.red:"transparent",color:unit===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:unit===u?700:400}}>{u}</button>)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          
-          <div style={{marginBottom:20}}>
-            <SL>Bean Origin (from inventory)</SL>
-            <div style={{position:"relative"}}>
-              <button onClick={()=>setShowBeanPicker(v=>!v)}
-                style={{width:"100%",padding:"11px 16px",border:`2px solid ${selectedBean?C.red:C.tan}`,borderRadius:12,background:selectedBean?"rgba(255,255,255,0.95)":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                {selectedBean?(
-                  <div>
-                    <div style={{fontSize:14,fontWeight:700,color:C.dark}}>{selectedBean.origin}</div>
-                    <div style={{fontSize:11,color:C.mocha,marginTop:1}}>{[selectedBean.supplier,selectedBean.processing].filter(Boolean).join(" · ")} · ${selectedBean.costPerKg||0}/kg · {(selectedBean.stockG/1000).toFixed(2)}kg in stock</div>
-                  </div>
-                ):(
-                  <span style={{color:C.mocha,fontSize:13,fontStyle:"italic"}}>Select a bean from inventory…</span>
-                )}
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  {selectedBean&&canCompute&&(()=>{
-                    const needed=Math.ceil(greenNeeded);
-                    const enough=selectedBean.stockG>=needed;
-                    return <span style={{fontSize:11,fontWeight:700,background:enough?"#dcfce7":"#fee2e2",color:enough?"#16a34a":"#dc2626",border:`1px solid ${enough?"#86efac":"#fca5a5"}`,borderRadius:20,padding:"2px 10px"}}>
-                      {enough?`✓ ${((selectedBean.stockG-needed)/1000).toFixed(2)}kg remaining after`:`⚠ ${((needed-selectedBean.stockG)/1000).toFixed(2)}kg short`}
-                    </span>;
-                  })()}
-                  {selectedBean&&<button onClick={e=>{e.stopPropagation();setSelectedBeanId(null);}} style={{background:"#fee2e2",border:"none",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#dc2626",fontFamily:"Georgia,serif"}}>✕</button>}
-                  <span style={{fontSize:12,color:C.mocha}}>{showBeanPicker?"▲":"▼"}</span>
-                </div>
-              </button>
-              {showBeanPicker&&(
-                <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:C.white,border:`2px solid ${C.tan}`,borderRadius:14,boxShadow:"0 16px 50px rgba(12,12,12,0.18)",zIndex:200,overflow:"hidden"}}>
-                  {inventory.length===0?(
-                    <div style={{padding:"24px",textAlign:"center",color:C.mocha,fontSize:12,fontStyle:"italic"}}>No beans in inventory yet — add them in the Inventory tab</div>
-                  ):inventory.map(bean=>{
-                    const needed=canCompute?Math.ceil(greenNeeded):0;
-                    const enough=bean.stockG>=needed&&needed>0;
-                    const isSelected=bean.id===selectedBeanId;
-                    return (
-                      <div key={bean.id} onClick={()=>{setSelectedBeanId(bean.id);setShowBeanPicker(false);setCosts(p=>({...p,greenCostPerKg:bean.costPerKg||p.greenCostPerKg}));}}
-                        style={{padding:"12px 16px",cursor:"pointer",background:isSelected?`${C.red}10`:C.white,borderBottom:`1px solid ${C.cream}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}
-                        onMouseEnter={e=>{ if(!isSelected)e.currentTarget.style.background=C.cream; }}
-                        onMouseLeave={e=>{ if(!isSelected)e.currentTarget.style.background=C.white; }}>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:700,color:isSelected?C.red:C.dark,fontFamily:"Georgia,serif"}}>{bean.origin}</div>
-                          <div style={{fontSize:11,color:C.mocha}}>{[bean.supplier,bean.processing].filter(Boolean).join(" · ")} · ${bean.costPerKg||0}/kg</div>
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:13,fontWeight:700,color:bean.stockG<(bean.lowAlertKg*1000||0)?"#d97706":C.espresso}}>{(bean.stockG/1000).toFixed(2)}kg</div>
-                          {needed>0&&<div style={{fontSize:10,color:enough?"#16a34a":"#dc2626",fontWeight:700}}>{enough?"✓ enough":"⚠ insufficient"}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:18}}>
-            <div>
-              {orderMode==="weight"&&(
-                <>
-                  <SL>Output Format</SL>
-                  <div style={{display:"flex",gap:8}}>
-                    {FORMATS.map(f=><button key={f.id} onClick={()=>setFormat(f.id)} style={{flex:1,padding:"10px 6px",border:`2px solid ${format===f.id?C.red:C.tan}`,background:format===f.id?C.red:"rgba(255,255,255,0.7)",color:format===f.id?C.cream:C.mocha,borderRadius:10,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:format===f.id?700:400,textAlign:"center"}}>
-                      <div style={{fontSize:18,marginBottom:4}}>{f.icon}</div>{f.label}
-                    </button>)}
-                  </div>
-                </>
-              )}
-              {orderMode==="units"&&(
-                <div style={{background:`${C.red}08`,border:`1.5px solid ${C.red}30`,borderRadius:12,padding:"12px 14px"}}>
-                  <div style={{fontSize:10,letterSpacing:2,color:C.red,textTransform:"uppercase",marginBottom:6}}>Order Summary</div>
-                  <div style={{fontSize:13,color:C.espresso,lineHeight:1.8}}>
-                    <strong style={{fontFamily:"Georgia,serif"}}>{unitCount||"—"}</strong> × {FORMATS.find(f=>f.id===format)?.label||"units"} at <strong style={{fontFamily:"Georgia,serif"}}>{gramsPerUnit}g</strong> each<br/>
-                    = <strong style={{color:C.red,fontFamily:"Georgia,serif"}}>{unitCount&&gramsPerUnit?fmtW(parseFloat(unitCount)*gramsPerUnit):"—"}</strong> roasted needed
-                  </div>
-                </div>
-              )}
-            </div>
-            <div>
-              <SL>Roast Level</SL>
-              <div style={{display:"flex",gap:6}}>
-                {ROAST_LEVELS.map(l=><button key={l.id} onClick={()=>{setRoastLevel(l.id);setCustomLoss(null);}} style={{flex:1,padding:"8px 4px",border:`2px solid ${roastLevel===l.id?C.red:C.tan}`,background:roastLevel===l.id?C.red+"18":"rgba(255,255,255,0.7)",borderRadius:9,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:roastLevel===l.id?700:400,textAlign:"center",color:roastLevel===l.id?C.espresso:C.mocha}}>
-                  <div style={{width:10,height:10,borderRadius:"50%",background:l.dot,margin:"0 auto 4px",border:roastLevel===l.id?`2px solid ${C.red}`:"2px solid transparent"}}/>
-                  {l.label}
-                </button>)}
-              </div>
-              <div style={{marginTop:10,display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.6)",border:`1px solid ${C.tan}`,borderRadius:10,padding:"8px 14px"}}>
-                <span style={{fontSize:11,color:C.mocha,whiteSpace:"nowrap"}}>Roast loss %</span>
-                <input type="number" min="5" max="30" step="0.5"
-                  value={customLoss!=null?customLoss:Math.round((level?.loss||0.16)*100)}
-                  onChange={e=>setCustomLoss(parseFloat(e.target.value))}
-                  style={{width:62,border:`1.5px solid ${customLoss!=null?C.red:C.tan}`,borderRadius:8,padding:"5px 8px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:customLoss!=null?C.red:C.espresso,background:C.cream,textAlign:"center",outline:"none"}}/>
-                <span style={{fontSize:11,color:C.mocha}}>%</span>
-                {customLoss!=null
-                  ? <button onClick={()=>setCustomLoss(null)} style={{background:"transparent",border:`1px solid ${C.tan}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:C.mocha,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>Reset ({Math.round((level?.loss||0.16)*100)}%)</button>
-                  : <span style={{fontSize:11,color:C.mocha,fontStyle:"italic"}}>Default for {level?.label}</span>}
-              </div>
-            </div>
-          </div>
-          
-          <div style={{marginBottom:24}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <SL>Roaster Machines</SL>
-              <button onClick={()=>setPickerOpen(true)} style={{background:C.red,border:"none",color:C.cream,borderRadius:9,padding:"8px 18px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700}}>+ Add Machine</button>
-            </div>
-            {hasCustom&&(
-              <div style={{background:`${C.peach}30`,border:`1.5px solid ${C.peach}`,borderRadius:12,padding:14,marginBottom:12}}>
-                <SL>Custom Machine Specs</SL>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
-                  {[{k:"name",ph:"Machine name"},{k:"type",ph:"Fuel type"},{k:"capacity",ph:"Max capacity (g)"},{k:"roastTime",ph:"Medium roast time (min)"},{k:"coolTime",ph:"Cooling time (min)"}].map(f=>(
-                    <input key={f.k} className="inp" placeholder={f.ph} value={customFields[f.k]} onChange={e=>setCustomFields(p=>({...p,[f.k]:e.target.value}))} style={{fontSize:12,padding:"8px 12px"}}/>
-                  ))}
-                </div>
-              </div>
-            )}
-            {slots.length===0
-              ? <div style={{border:`2px dashed ${C.tan}`,borderRadius:14,padding:"36px 24px",textAlign:"center",color:C.mocha,background:"rgba(255,255,255,0.4)"}}>
-                  <div style={{fontSize:40,marginBottom:10}}>🏭</div>
-                  <div style={{fontSize:15,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif",marginBottom:6}}>No machines added yet</div>
-                  <div style={{fontSize:12,fontStyle:"italic"}}>Click "+ Add Machine" above to get started</div>
-                </div>
-              : <div style={{display:"grid",gridTemplateColumns:slots.length>1?"1fr 1fr":"1fr",gap:12}}>
-                  {slots.map((slot,i)=><MachineSlotCard key={`${slot.id}-${i}`} slot={slot} roastLevel={roastLevel} onQty={q=>setQty(i,q)} onRemove={()=>removeSlot(i)}/>)}
-                </div>
-            }
-            {slots.length>1&&(
-              <div style={{marginTop:10,padding:"9px 14px",background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:10,fontSize:12,color:C.espresso,display:"flex",alignItems:"center",gap:8}}>
-                ⚡ All machines run <strong style={{color:C.red}}>&nbsp;simultaneously</strong>&nbsp;— effective batch: <strong>&nbsp;{fmtW(Math.round(roastedCapPerRound))}</strong>/round · bottleneck: {slowestRT}min/batch
-              </div>
-            )}
-          </div>
-
-          
-          {canCompute&&packagingUnits>0&&(()=>{
-            const pkgId=format==="drip"?"drip-bag":format==="steep"?"steep-pack":"pouch-250g";
-            const pkg=packagingInv.find(p=>p.id===pkgId);
-            if(!pkg) return null;
-            const enough=pkg.stock>=packagingUnits;
-            return (
-              <div style={{marginBottom:16,padding:"10px 16px",background:enough?`#dcfce7`:`#fff3cd`,border:`1.5px solid ${enough?"#86efac":"#fbbf24"}`,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:18}}>{FORMATS.find(f=>f.id===format)?.icon}</span>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:700,color:enough?"#16a34a":"#92400e",fontFamily:"Georgia,serif"}}>
-                      {pkg.name}: {enough?`✓ enough in stock`:`⚠ need to restock`}
-                    </div>
-                    <div style={{fontSize:11,color:enough?"#16a34a":"#92400e"}}>
-                      Need <strong>{packagingUnits.toLocaleString()}</strong> · Have <strong>{pkg.stock.toLocaleString()}</strong>
-                      {!enough&&<> · Short <strong>{(packagingUnits-pkg.stock).toLocaleString()}</strong></>}
-                    </div>
-                  </div>
-                </div>
-                {!enough&&<div style={{fontSize:10,color:"#92400e",fontStyle:"italic",textAlign:"right"}}>Update stock in Inventory tab</div>}
-              </div>
-            );
-          })()}
-
-          {canCompute&&(
-            <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:18}}>
-                {[
-                  {label:"Rounds",value:rounds,sub:`${fmtW(Math.round(roastedCapPerRound))}/round`,icon:"🔁"},
-                  {label:"Total Time",value:fmtT(totalTime),sub:`${fmtT(totalRoastT)} + ${fmtT(totalCoolT)} cool`,icon:"⏱"},
-                  {label:"Green Beans",value:fmtW(Math.ceil(greenNeeded)),sub:doneCount>0?`${fmtW(Math.round(greenNeeded/rounds*doneCount))} used · ${fmtW(Math.round(greenNeeded/rounds*(rounds-doneCount)))} left`:`~${Math.round(effectiveLoss*100)}% roast loss`,icon:"🌱",live:doneCount>0},
-                  {label:"Wastage",value:fmtW(wastage),sub:wastage>100?"good for QC / samples":"minimal overage",icon:"📊",warn:wastage>300},
-                ].map(s=>(
-                  <div key={s.label} className="statcard" style={{border:s.live?`2px solid ${C.red}`:undefined,background:s.live?"rgba(217,80,53,0.06)":undefined}}>
-                    <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
-                    <div style={{fontSize:10,letterSpacing:2.5,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>{s.label}</div>
-                    <div style={{fontFamily:"Georgia,serif",fontSize:24,color:s.warn?"#d97706":C.red,fontWeight:900,lineHeight:1}}>{s.value}</div>
-                    <div style={{fontSize:11,color:C.mocha,marginTop:6}}>{s.sub}</div>
-                    {s.live&&<div style={{fontSize:10,color:C.red,marginTop:4,fontWeight:700}}>● Live</div>}
-                  </div>
-                ))}
-              </div>
-              
-              <div style={{border:`1.5px solid ${C.tan}`,borderRadius:14,marginBottom:20,overflow:"hidden",background:"rgba(255,255,255,0.85)"}}>
-                <button onClick={()=>setShowCosts(v=>!v)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:16}}>💰</span>
-                    <span style={{fontSize:13,fontWeight:700,color:C.espresso}}>Cost Breakdown</span>
-                    {totalCost>0&&(
-                      <div style={{display:"flex",gap:6}}>
-                        <span style={{fontSize:12,color:C.red,fontWeight:700,background:`${C.red}15`,border:`1px solid ${C.red}30`,borderRadius:20,padding:"2px 10px"}}>${totalCost.toFixed(2)} total</span>
-                        <span style={{fontSize:12,color:C.mocha,background:`${C.tan}30`,border:`1px solid ${C.tan}`,borderRadius:20,padding:"2px 10px"}}>${(costPerG*1000).toFixed(2)}/kg</span>
-                        <span style={{fontSize:12,color:C.mocha,background:`${C.tan}30`,border:`1px solid ${C.tan}`,borderRadius:20,padding:"2px 10px"}}>${costPerG.toFixed(4)}/g</span>
-                        {marginPct>0&&<span style={{fontSize:12,color:"#16a34a",fontWeight:700,background:"#dcfce7",border:"1px solid #86efac",borderRadius:20,padding:"2px 10px"}}>→ ${((costPerG*1000)/(1-marginPct/100)).toFixed(2)}/kg sell · ${(((costPerG*1000)/(1-marginPct/100))*(grams/1000)-totalCost).toFixed(2)} profit</span>}
-                      </div>
-                    )}
-                  </div>
-                  <span style={{fontSize:12,color:C.mocha}}>{showCosts?"▲ Hide settings":"▼ Edit costs"}</span>
-                </button>
-                {showCosts&&(
-                  <div style={{padding:"0 18px 18px",borderTop:`1px solid ${C.tan}`}}>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:14}}>
-                      
-                      <div style={{background:C.cream,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.tan}`}}>
-                        <div style={{fontSize:11,color:C.mocha,marginBottom:6}}>🌱 Green bean cost <span style={{color:C.tan}}>$/kg</span></div>
-                        <input type="number" min="0" step="0.01" value={costs.greenCostPerKg||""} placeholder="0.00"
-                          onChange={e=>setCosts(p=>({...p,greenCostPerKg:parseFloat(e.target.value)||0}))}
-                          style={{width:"100%",border:`1.5px solid ${C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,color:C.red,background:C.white,outline:"none",boxSizing:"border-box"}}/>
-                        <div style={{fontSize:10,color:C.mocha,marginTop:4,fontStyle:"italic"}}>{greenKg.toFixed(2)}kg needed = ${greenCost.toFixed(2)}</div>
-                      </div>
-                      
-                      <div style={{background:C.cream,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.tan}`}}>
-                        <div style={{fontSize:11,color:C.mocha,marginBottom:6}}>⏱ Labour rate <span style={{color:C.tan}}>$/hr</span></div>
-                        <input type="number" min="0" step="1" value={costs.hourlyRate||""} placeholder="0.00"
-                          onChange={e=>setCosts(p=>({...p,hourlyRate:parseFloat(e.target.value)||0}))}
-                          style={{width:"100%",border:`1.5px solid ${C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,color:C.red,background:C.white,outline:"none",boxSizing:"border-box"}}/>
-                        <div style={{fontSize:10,color:C.mocha,marginTop:4,fontStyle:"italic"}}>{(totalTime/60).toFixed(1)}h × ${costs.hourlyRate||0}/hr = ${labourCost.toFixed(2)}</div>
-                      </div>
-                      
-                      <div style={{gridColumn:"1/-1",background:C.cream,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.tan}`}}>
-                        <div style={{fontSize:11,color:C.mocha,marginBottom:10}}>📦 Packaging cost</div>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:10,alignItems:"center"}}>
-                          <div>
-                            <div style={{fontSize:10,color:C.mocha,marginBottom:4}}>Per unit ($/unit)</div>
-                            <input type="number" min="0" step="0.01" value={costs.packagingCostPerUnit||""} placeholder="0.15"
-                              onChange={e=>setCosts(p=>({...p,packagingCostPerUnit:parseFloat(e.target.value)||0}))}
-                              style={{width:"100%",border:`1.5px solid ${costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.tan:C.red}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.mocha:C.red,background:C.white,outline:"none",boxSizing:"border-box",
-                                opacity:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?0.5:1}}/>
-                            <div style={{fontSize:10,color:C.mocha,marginTop:3,fontStyle:"italic"}}>{packagingUnits} units × ${costs.packagingCostPerUnit||0} = ${packagingPerUnit.toFixed(2)}</div>
-                          </div>
-                          <div style={{textAlign:"center"}}>
-                            <div style={{fontSize:10,color:C.tan,marginBottom:4}}>or override</div>
-                            <div style={{width:1,height:36,background:C.tan,margin:"0 auto"}}/>
-                          </div>
-                          <div>
-                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                              <div style={{fontSize:10,color:C.mocha}}>Flat total ($)</div>
-                              {costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""&&(
-                                <button onClick={()=>setCosts(p=>({...p,packagingFlatOverride:null}))} style={{fontSize:9,color:C.mocha,background:"transparent",border:`1px solid ${C.tan}`,borderRadius:4,padding:"1px 6px",cursor:"pointer",fontFamily:"Georgia,serif"}}>clear</button>
-                              )}
-                            </div>
-                            <input type="number" min="0" step="0.01" value={costs.packagingFlatOverride!=null?costs.packagingFlatOverride:""} placeholder="leave blank to use per-unit"
-                              onChange={e=>setCosts(p=>({...p,packagingFlatOverride:e.target.value===""?null:e.target.value}))}
-                              style={{width:"100%",border:`1.5px solid ${costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.red:C.tan}`,borderRadius:8,padding:"6px 10px",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700,color:costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?C.red:C.mocha,background:C.white,outline:"none",boxSizing:"border-box"}}/>
-                            <div style={{fontSize:10,color:C.mocha,marginTop:3,fontStyle:"italic"}}>{costs.packagingFlatOverride!=null&&costs.packagingFlatOverride!==""?"✓ Using flat override":"Using per-unit calc"}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{display:"flex",gap:8,marginTop:14,padding:"10px 12px",background:C.espresso,borderRadius:10,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",overflowX:"hidden"}}>
-                      {[{l:"Green",v:`$${greenCost.toFixed(2)}`},{l:"Packaging",v:`$${packagingCost.toFixed(2)}`},{l:"Labour",v:`$${labourCost.toFixed(2)}`}].map(s=>(
-                        <div key={s.l} style={{textAlign:"center"}}>
-                          <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>{s.l}</div>
-                          <div style={{fontSize:16,fontWeight:700,color:C.cream,fontFamily:"Georgia,serif"}}>{s.v}</div>
-                        </div>
-                      ))}
-                      <div style={{width:1,height:30,background:"rgba(240,228,204,0.15)"}}/>
-                      <div style={{textAlign:"center"}}>
-                        <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>Total</div>
-                        <div style={{fontSize:20,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>${totalCost.toFixed(2)}</div>
-                      </div>
-                      <div style={{textAlign:"center"}}>
-                        <div style={{fontSize:9,color:C.mocha,letterSpacing:2,textTransform:"uppercase"}}>Per kg</div>
-                        <div style={{fontSize:20,fontWeight:900,color:C.peach,fontFamily:"Georgia,serif"}}>${(costPerG*1000).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{background:"rgba(255,255,255,0.7)",border:`1.5px solid ${C.tan}`,borderRadius:14,padding:20,marginBottom:20}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                  <SL>Round-by-Round Tracker</SL>
-                  {rounds>0&&<div style={{fontSize:12,color:C.mocha,background:C.cream,padding:"4px 12px",borderRadius:20,border:`1px solid ${C.tan}`}}><span style={{fontWeight:700,color:doneCount===rounds?"#16a34a":C.red}}>{doneCount}</span>/{rounds} done{doneCount===rounds&&rounds>0&&" 🎉"}</div>}
-                </div>
-                {Array.from({length:rounds}).map((_,i)=>{
-                  const rem=grams-roastedCapPerRound*i;
-                  const thisRound=Math.min(rem,roastedCapPerRound);
-                  return <RoundRow key={i} idx={i} thisRoasted={thisRound} maxRoasted={roastedCapPerRound} roastLevel={roastLevel} cumTime={(i+1)*timePerRound} done={!!roundStates[i]} onToggle={()=>toggleRound(i)} note={roundNotes[i]||""} onNote={n=>setNote(i,n)}/>;
-                })}
-              </div>
-              {aiLines&&(
-                <div style={{background:C.espresso,borderRadius:14,padding:20,marginBottom:20,border:`2px solid ${C.red}30`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:C.red,boxShadow:`0 0 10px ${C.red}`}}/>
-                    <span style={{fontSize:10,letterSpacing:3,color:C.mocha,textTransform:"uppercase"}}>Roast Intelligence</span>
-                  </div>
-                  {aiLines.map((line,i)=><p key={i} className="ailn" style={{animationDelay:`${i*0.12}s`}} dangerouslySetInnerHTML={{__html:md(line)}}/>)}
-                </div>
-              )}
-              <div style={{background:"rgba(255,255,255,0.7)",border:`1.5px solid ${C.tan}`,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
-                <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:10}}>On Save — inventory will be deducted:</div>
-                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                  {selectedBean&&<div style={{background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:8,padding:"6px 12px"}}>
-                    <div style={{fontSize:10,color:C.mocha}}>🌱 Green beans</div>
-                    <div style={{fontSize:13,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>
-                      {doneCount>0
-                        ? <>−{fmtW(Math.round(greenNeeded/rounds*(rounds-doneCount)))} {selectedBean.origin} <span style={{fontSize:10,color:C.mocha,fontWeight:400}}>({doneCount}/{rounds} rounds already deducted live)</span></>
-                        : <>−{fmtW(Math.ceil(greenNeeded))} {selectedBean.origin}</>
-                      }
-                    </div>
-                  </div>}
-                  {packagingUnits>0&&<div style={{background:`${C.red}10`,border:`1px solid ${C.red}30`,borderRadius:8,padding:"6px 12px"}}>
-                    <div style={{fontSize:10,color:C.mocha}}>📦 Packaging</div>
-                    <div style={{fontSize:13,fontWeight:700,color:C.red,fontFamily:"Georgia,serif"}}>−{packagingUnits.toLocaleString()} {FORMATS.find(f=>f.id===format)?.label}</div>
-                  </div>}
-                  {!selectedBean&&<div style={{fontSize:12,color:C.mocha,fontStyle:"italic",padding:"6px 0"}}>Select a bean above to track green bean deduction</div>}
-                </div>
-              </div>
-              <button className="savebtn" onClick={saveLog}>Save to Order Log →</button>
-            </>
-          )}
-          {!canCompute&&(
-            <div style={{textAlign:"center",padding:"64px 0",color:C.mocha}}>
-              <div style={{fontSize:52,marginBottom:12}}>☕</div>
-              <div style={{fontSize:14,fontStyle:"italic"}}>Enter an order amount to begin calculating</div>
-            </div>
-          )}
-          </>)}
-        </div>
-      )}
-
-      
-      {activeTab==="log"&&(
-        <div style={{maxWidth:980,margin:"0 auto",padding:"20px 16px"}}>
-          {log.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:20}}>
-              {[
-                {label:"Total Orders",value:totalOrders,icon:"📦",color:C.red},
-                {label:"Total Roasted",value:`${totalKgRoasted.toFixed(1)}kg`,icon:"☕",color:C.espresso},
-                {label:"Active Orders",value:pendingCount,icon:"🔥",color:"#d97706"},
-                {label:"Est. Revenue",value:totalRevenue>0?`$${totalRevenue.toFixed(0)}`:"—",icon:"💰",color:"#16a34a"},
-              ].map(s=>(
-                <div key={s.label} className="statcard">
-                  <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
-                  <div style={{fontSize:10,letterSpacing:2,color:C.mocha,textTransform:"uppercase",marginBottom:6}}>{s.label}</div>
-                  <div style={{fontFamily:"Georgia,serif",fontSize:26,color:s.color,fontWeight:900,lineHeight:1}}>{s.value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",alignItems:"center"}}>
-            <input className="inp" value={logSearch} onChange={e=>setLogSearch(e.target.value)} placeholder="🔍  Search client or machine…" style={{flex:1,minWidth:200,padding:"9px 14px"}}/>
-            <select value={logStatusFilter} onChange={e=>setLogStatusFilter(e.target.value)} style={{border:`1.5px solid ${C.tan}`,borderRadius:10,padding:"9px 14px",fontFamily:"Georgia,serif",fontSize:13,color:C.espresso,background:C.white,cursor:"pointer"}}>
-              <option value="all">All statuses</option>
-              {STATUS_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            {log.length>0&&<button onClick={exportCSV} style={{background:C.espresso,border:"none",color:C.cream,borderRadius:10,padding:"9px 18px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,whiteSpace:"nowrap"}}>↓ Export CSV</button>}
-          </div>
-          {filteredLog.length>0&&(
-            <div style={{display:"none"}}>
-              <div style={{flex:"0 0 130px"}}>Client</div>
-            </div>
-          )}
-          {filteredLog.length>0
-            ? filteredLog.map(entry=><LogEntryCard key={entry.id} entry={entry} onDelete={()=>deleteEntry(entry.id)} onStatusChange={s=>updateEntry({...entry,status:s})} onNoteChange={updated=>updateEntry(updated)}/>)
-            : <div style={{textAlign:"center",padding:"80px 0",color:C.mocha}}>
-                <div style={{fontSize:48,marginBottom:12}}>📋</div>
-                <div style={{fontSize:16,fontWeight:700,color:C.espresso,marginBottom:8,fontFamily:"Georgia,serif"}}>{log.length===0?"No orders logged yet":"No orders match your filter"}</div>
-                <div style={{fontSize:13,fontStyle:"italic"}}>{log.length===0?"Calculate a roast and hit \"Save to Order Log\" to start tracking":"Try adjusting your search or filter"}</div>
-                {log.length===0&&<button onClick={()=>setActiveTab("calc")} style={{marginTop:20,background:C.red,border:"none",color:C.cream,borderRadius:10,padding:"10px 24px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:14,fontWeight:700}}>Go to Calculator →</button>}
-              </div>
-          }
-        </div>
-      )}
-
-      
-      {activeTab==="calendar"&&(
-        <CalendarTab log={log} schedule={schedule} onScheduleChange={setSchedule}/>
-      )}
-
-      
-      {activeTab==="inventory"&&(
-        <InventoryTab inventory={inventory} setInventory={setInventory} log={log} beanCatalog={beanCatalog} setBeanCatalog={setBeanCatalog} packagingInv={packagingInv} setPackagingInv={setPackagingInv}/>
-      )}
-
-      {activeTab==="finance"&&(
-        <FinanceTab log={log} inventory={inventory}/>
-      )}    </div>
   );
 }
 
