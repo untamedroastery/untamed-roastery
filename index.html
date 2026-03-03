@@ -256,12 +256,11 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
 
         <div style={{flex:"1 1 180px",minWidth:0}}>
           <div style={{fontWeight:700,color:editing?"#2563eb":C.dark,fontSize:16,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.2}}>
-            {e.client||"—"}{editing&&" ✏️"}
+            {e.beanOrigin?e.beanOrigin+" · "+fmtDate(entry.id):fmtDate(entry.id)}{editing&&" ✏️"}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4,flexWrap:"wrap"}}>
             {e.isMultiTrack&&<span style={{fontSize:9,letterSpacing:0.8,color:C.mocha,background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"1px 6px",textTransform:"uppercase"}}>Multi-track</span>}
-            {e.beanOrigin&&<span style={{fontSize:11,color:C.espresso,fontWeight:600,background:C.tan+"50",borderRadius:8,padding:"1px 8px"}}>{e.beanOrigin}</span>}
-            <span style={{fontSize:11,color:C.mocha}}>{fmtDate(entry.id)}</span>
+            {e.client&&e.client!=="Multi-track Session"&&<span style={{fontSize:10,color:C.mocha}}>{e.client}</span>}
           </div>
         </div>
 
