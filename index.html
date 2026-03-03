@@ -220,6 +220,228 @@ function RoundRow({ idx,thisRoasted,maxRoasted,roastLevel,cumTime,done,onToggle,
   );
 }
 
+// ─── SINGLE ORDER CALCULATOR ───
+function SingleOrderCalc({ order, setOrderField, inventory, roundStates, roundNotes, toggleRound, setNote, onSave }){
+  var useState = React.useState;
+  var C = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF",peach:"#E3A88E"};
+  var showPickerS = useState(false); var showPicker=showPickerS[0]; var setShowPicker=showPickerS[1];
+
+  var calc = calcOrder(order);
+  var slots = order.slots||[];
+  var grams = order.unit==="kg" ? parseFloat(order.grams||0)*1000 : parseFloat(order.grams||0);
+  var bean = inventory.find(function(b){ return b.id===order.beanId; })||null;
+  var doneCount = Object.keys(roundStates||{}).length;
+  var allDone = calc.rounds>0 && doneCount===calc.rounds;
+
+  function addSlot(machineId){
+    var existing = slots.map(function(s){ return s.id; });
+    if(existing.includes(machineId)) return;
+    setOrderField("slots", slots.concat([{id:machineId, qty:1}]));
+    setShowPicker(false);
+  }
+  function removeSlot(id){ setOrderField("slots", slots.filter(function(s){ return s.id!==id; })); }
+  function setSlotQty(id, qty){ setOrderField("slots", slots.map(function(s){ return s.id===id?Object.assign({},s,{qty:qty}):s; })); }
+
+  function handleSave(){
+    if(!grams||slots.length===0) return;
+    var lv = ROAST_LEVELS.find(function(r){ return r.id===order.roastLevel; })||ROAST_LEVELS[2];
+    var loss = lv.loss;
+    var greenNeeded = grams/(1-loss);
+    var wastage = greenNeeded-grams;
+    var mPct = order.marginPct!=null ? order.marginPct : channelMargin(order.channel||"retail");
+    var greenCostPerKg = bean ? (bean.pricePerKg||0) : 0;
+    var totalCost = greenCostPerKg*(greenNeeded/1000);
+    var costPerKg = grams>0 ? totalCost/(grams/1000) : 0;
+    var sellPricePerKg = costPerKg>0 ? costPerKg/(1-mPct/100) : 0;
+    var machines = slots.map(function(sl){
+      var m=MACHINES.find(function(x){ return x.id===sl.id; })||MACHINES[0];
+      return sl.qty+"x "+m.model;
+    }).join(", ");
+    var roundDetails = Array.from({length:calc.rounds}).map(function(_,i){
+      return {round:i+1, done:!!(roundStates||{})[i], note:(roundNotes||{})[i]||""};
+    });
+    var entry = {
+      id: Date.now(),
+      client: order.client||"",
+      grams: grams,
+      level: lv.label,
+      roastLevel: order.roastLevel||"medium",
+      format: order.format||"whole",
+      machines: machines,
+      rounds: calc.rounds,
+      completedRounds: doneCount,
+      roastTime: calc.roastTime,
+      coolTime: calc.coolTime,
+      totalTime: calc.totalTime,
+      greenNeeded: Math.ceil(greenNeeded),
+      wastage: Math.round(wastage),
+      lossPercent: Math.round(loss*100),
+      greenCostPerKg: greenCostPerKg,
+      totalCost: totalCost,
+      costPerKg: costPerKg,
+      sellPricePerKg: sellPricePerKg,
+      margin: sellPricePerKg*(grams/1000)-totalCost,
+      marginPct: mPct,
+      channel: order.channel||"retail",
+      beanOrigin: bean ? bean.origin : null,
+      beanOriginId: order.beanId||null,
+      status: "pending",
+      orderNote: "",
+      roundDetails: roundDetails,
+      isMultiTrack: false,
+    };
+    onSave(entry);
+  }
+
+  return (
+    <div>
+      <div style={{background:"rgba(255,255,255,0.9)",border:"1.5px solid "+C.tan,borderRadius:14,padding:"16px",marginBottom:12}}>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div style={{gridColumn:"1/-1"}}>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Client / Order Name</div>
+            <input value={order.client||""} onChange={function(e){ setOrderField("client",e.target.value); }}
+              placeholder="e.g. KNDZ, Wedding Favors, Walk-in..."
+              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:9,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Target Roasted Weight</div>
+            <div style={{display:"flex",gap:6}}>
+              <input type="number" value={order.grams||""} onChange={function(e){ setOrderField("grams",e.target.value); }}
+                placeholder="e.g. 2000"
+                style={{flex:1,border:"1.5px solid "+C.tan,borderRadius:9,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:C.white,outline:"none"}}/>
+              <div style={{display:"flex",background:C.white,borderRadius:8,overflow:"hidden",border:"1px solid "+C.tan,flexShrink:0}}>
+                {["g","kg"].map(function(u){ return (
+                  <button key={u} onClick={function(){ setOrderField("unit",u); }}
+                    style={{padding:"0 10px",background:(order.unit||"g")===u?C.red:"transparent",color:(order.unit||"g")===u?C.cream:C.mocha,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700}}>
+                    {u}
+                  </button>
+                ); })}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Roast Level</div>
+            <select value={order.roastLevel||"medium"} onChange={function(e){ setOrderField("roastLevel",e.target.value); }}
+              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:9,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}>
+              {ROAST_LEVELS.map(function(l){ return <option key={l.id} value={l.id}>{l.label}</option>; })}
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Format</div>
+            <select value={order.format||"whole"} onChange={function(e){ setOrderField("format",e.target.value); }}
+              style={{width:"100%",border:"1.5px solid "+C.tan,borderRadius:9,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}>
+              <option value="whole">Whole Bean</option>
+              <option value="drip">Drip Bags</option>
+              <option value="steep">Steep Packs</option>
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Bean Origin</div>
+            <select value={order.beanId||""} onChange={function(e){ setOrderField("beanId",e.target.value); }}
+              style={{width:"100%",border:"1.5px solid "+(order.beanId?C.red:C.tan),borderRadius:9,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:C.white,outline:"none",boxSizing:"border-box"}}>
+              <option value="">Select bean…</option>
+              {inventory.map(function(b){ return <option key={b.id} value={b.id}>{b.origin} ({(b.stockG/1000).toFixed(1)}kg)</option>; })}
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:5}}>Sales Channel</div>
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {CHANNELS.map(function(ch){
+                var sel=(order.channel||"retail")===ch.id;
+                return (
+                  <button key={ch.id} onClick={function(){ setOrderField("channel",ch.id); setOrderField("marginPct",channelMargin(ch.id)); }}
+                    style={{flex:"1 1 auto",padding:"6px 8px",borderRadius:8,border:"2px solid "+(sel?C.red:C.tan),background:sel?C.red+"18":"rgba(255,255,255,0.7)",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,fontWeight:sel?700:400,color:sel?C.red:C.mocha}}>
+                    {ch.icon} {ch.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,letterSpacing:1.5,color:C.mocha,textTransform:"uppercase",marginBottom:8}}>Machines</div>
+          {slots.length===0&&(
+            <div style={{textAlign:"center",padding:"18px",background:C.cream,borderRadius:10,border:"1.5px dashed "+C.tan,marginBottom:8,color:C.mocha,fontSize:12}}>No machines added yet</div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8,marginBottom:8}}>
+            {slots.map(function(sl){ return (
+              <MachineSlotCard key={sl.id} slot={sl} roastLevel={order.roastLevel||"medium"}
+                onQty={function(q){ setSlotQty(sl.id,q); }}
+                onRemove={function(){ removeSlot(sl.id); }}
+              />
+            ); })}
+          </div>
+          <button onClick={function(){ setShowPicker(true); }}
+            style={{width:"100%",padding:"9px",border:"2px dashed "+C.tan,borderRadius:10,background:"transparent",cursor:"pointer",color:C.mocha,fontFamily:"Georgia,serif",fontSize:12}}>
+            + Add Machine
+          </button>
+        </div>
+
+        {showPicker&&(
+          <MachinePicker onSelect={addSlot} onClose={function(){ setShowPicker(false); }} existing={slots.map(function(s){ return s.id; })}/>
+        )}
+
+        {calc.rounds>0&&grams>0&&(
+          <div style={{background:C.espresso,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"center"}}>
+              <div style={{flex:"1 1 auto"}}>
+                <div style={{fontSize:9,color:C.tan,letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>This roast</div>
+                <div style={{fontSize:11,color:C.cream,marginTop:2}}>{bean?bean.origin:"—"} · {(ROAST_LEVELS.find(function(r){ return r.id===order.roastLevel; })||ROAST_LEVELS[2]).label}</div>
+              </div>
+              {[
+                {l:"Rounds",v:calc.rounds+""},
+                {l:"Roast Time",v:fmtT(calc.roastTime)},
+                {l:"Cool Time",v:fmtT(calc.coolTime)},
+                {l:"Green Beans",v:fmtW(Math.ceil(calc.greenNeeded))},
+              ].map(function(stat){ return (
+                <div key={stat.l} style={{textAlign:"center"}}>
+                  <div style={{fontSize:9,color:C.tan,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{stat.l}</div>
+                  <div style={{fontSize:16,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif"}}>{stat.v}</div>
+                </div>
+              ); })}
+            </div>
+          </div>
+        )}
+
+        {calc.rounds>0&&(
+          <div style={{background:C.cream,borderRadius:10,padding:"12px",marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontSize:10,color:C.mocha,textTransform:"uppercase",letterSpacing:1.5}}>Round Tracker</span>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:11,color:C.mocha}}><b style={{color:allDone?"#16a34a":C.red}}>{doneCount}</b>/{calc.rounds} done</span>
+                {allDone&&<span style={{fontSize:14}}>🎉</span>}
+              </div>
+            </div>
+            {Array.from({length:calc.rounds}).map(function(_,i){
+              var done=!!(roundStates||{})[i];
+              return (
+                <RoundRow key={i} idx={i}
+                  thisRoasted={Math.ceil(calc.perRoundRoasted||0)}
+                  maxRoasted={calc.maxBatchRoasted||0}
+                  roastLevel={order.roastLevel||"medium"}
+                  cumTime={(i+1)*(calc.roundTime||0)}
+                  done={done}
+                  onToggle={function(){ toggleRound(i); }}
+                  note={(roundNotes||{})[i]||""}
+                  onNote={function(v){ setNote(i,v); }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <button onClick={handleSave} disabled={!grams||slots.length===0}
+          style={{width:"100%",padding:"12px",background:(grams&&slots.length>0)?C.red:"#ccc",color:C.cream,border:"none",borderRadius:10,cursor:(grams&&slots.length>0)?"pointer":"default",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700}}>
+          Save to Order Log
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── LOG ENTRY CARD ───
 function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
   var useState = React.useState;
