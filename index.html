@@ -96,7 +96,8 @@ const DEFAULT_BEAN_CATALOG = [
 // ─── HELPERS ───
 function fmtW(g){ return g>=1000?`${(g/1000).toFixed(2)}kg`:`${Math.round(g)}g`; }
 function fmtT(m){ if(!m&&m!==0)return"—"; const h=Math.floor(m/60),r=m%60; return h>0?`${h}h ${r}m`:`${r}m`; }
-function md(s){ return s.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>"); }
+
+function fmtSec(sec){ var m=Math.floor(sec/60),s2=sec%60; return String(m).padStart(2,"0")+":"+String(s2).padStart(2,"0"); }function md(s){ return s.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>"); }
 function fmtDate(ts){ return new Date(ts).toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"}); }
 function fmtDateFull(ts){ return new Date(ts).toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
 function toYMD(ts){ const d=new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
@@ -1554,7 +1555,6 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     if(persistedTracks===null){ onTracksChange([newTrack(),newTrack()]); }
   }, []);
 
-  function fmtSec(s){ var m=Math.floor(s/60),sec=s%60; return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"); }
   function updateTrack(id,updates){ setTracks(function(p){ return p.map(function(t){ return t.id===id?Object.assign({},t,updates):t; }); }); }
   function updateTrackRoundNote(trackId,roundIdx,note){
     setTracks(function(p){ return p.map(function(t){
