@@ -2069,6 +2069,230 @@ function FinanceTab({ log, inventory }){
   );
 }
 
+// ════════════════════════════════════════════════
+// ROOT APP
+// ════════════════════════════════════════════════
+function RoastCalc(){
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var C = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF",peach:"#E3A88E"};
+
+  var logS=useState([]); var log=logS[0]; var setLog=logS[1];
+  var schedS=useState([]); var schedule=schedS[0]; var setSchedule=schedS[1];
+  var invS=useState([]); var inventory=invS[0]; var setInventory=invS[1];
+  var costsS=useState({greenCostPerKg:0,laborPerHour:0,packagingPerUnit:0}); var costs=costsS[0]; var setCosts=costsS[1];
+  var bcS=useState([]); var beanCatalog=bcS[0]; var setBeanCatalog=bcS[1];
+  var piS=useState([]); var packagingInv=piS[0]; var setPackagingInv=piS[1];
+  var srS=useState(false); var storageReady=srS[0]; var setStorageReady=srS[1];
+
+  useEffect(function(){
+    var db = window.__db;
+    var keys = [
+      ["log",setLog],["schedule",setSchedule],["inventory",setInventory],
+      ["costs",setCosts],["beanCatalog",setBeanCatalog],["packagingInv",setPackagingInv]
+    ];
+    Promise.all(keys.map(function(pair){ return db.collection("untamed-roastery").doc(pair[0]).get(); }))
+      .then(function(snaps){
+        snaps.forEach(function(snap,i){ if(snap.exists&&snap.data()&&snap.data().value!=null) keys[i][1](snap.data().value); });
+        setStorageReady(true);
+      }).catch(function(){ setStorageReady(true); });
+    var unsubs = keys.map(function(pair){
+      return db.collection("untamed-roastery").doc(pair[0]).onSnapshot(function(snap){
+        if(snap.exists&&snap.data()&&snap.data().value!=null) pair[1](snap.data().value);
+      });
+    });
+    return function(){ unsubs.forEach(function(u){ u(); }); };
+  },[]);
+
+  function fbSet(key,value){ if(!storageReady||!window.__db)return; window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){}); }
+  useEffect(function(){ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("costs",costs); },[costs,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
+
+  var tabS=useState("calc"); var activeTab=tabS[0]; var setActiveTab=tabS[1];
+  var modeS=useState("single"); var calcMode=modeS[0]; var setCalcMode=modeS[1];
+  var orderS=useState({client:"",grams:"",unit:"g",roastLevel:"medium",format:"whole",slots:[],channel:"retail",marginPct:75});
+  var order=orderS[0]; var setOrder=orderS[1];
+  function setOrderField(f,v){ setOrder(function(p){ return Object.assign({},p,{[f]:v}); }); }
+  var rnS=useState({}); var roundNotes=rnS[0]; var setRoundNotes=rnS[1];
+  var rsS=useState({}); var roundStates=rsS[0]; var setRoundStates=rsS[1];
+  var tracksS=useState(null); var tracks=tracksS[0]; var setTracks=tracksS[1];
+  var snS=useState(""); var sessionName=snS[0]; var setSessionName=snS[1];
+  var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
+  var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
+  var stS=useState([]); var savedTrackIds=stS[0]; var setSavedTrackIds=stS[1];
+  var lsS=useState(""); var logSearch=lsS[0]; var setLogSearch=lsS[1];
+  var lsfS=useState("all"); var logStatusFilter=lsfS[0]; var setLogStatusFilter=lsfS[1];
+
+  function saveSession(entries){ setLog(function(p){ return [].concat(entries,p); }); }
+  function deleteEntry(id){ setLog(function(p){ return p.filter(function(e){ return e.id!==id; }); }); }
+  function updateEntry(updated){ setLog(function(p){ return p.map(function(e){ return e.id===updated.id?updated:e; }); }); }
+  function updateStatus(id,status){ setLog(function(p){ return p.map(function(e){ return e.id===id?Object.assign({},e,{status:status}):e; }); }); }
+  function toggleRoundSingle(i){ setRoundStates(function(p){ var n=Object.assign({},p); if(n[i]) delete n[i]; else n[i]=true; return n; }); }
+  function setNote(i,v){ setRoundNotes(function(p){ var n=Object.assign({},p); n[i]=v; return n; }); }
+
+  var filteredLog = log.filter(function(e){
+    var q=logSearch.toLowerCase();
+    var matchQ=!q||(e.client||"").toLowerCase().includes(q)||(e.machines||"").toLowerCase().includes(q)||(e.beanOrigin||"").toLowerCase().includes(q);
+    var matchS=logStatusFilter==="all"||(e.status||"pending")===logStatusFilter;
+    return matchQ&&matchS;
+  });
+
+  var STATUS_OPTIONS_NAV=[{id:"all",label:"All statuses"}].concat(STATUS_OPTIONS);
+  var tabs=[
+    {id:"calc",label:"Calculator",icon:"⚙️"},
+    {id:"log",label:"Order Log ("+log.length+")",icon:"📋"},
+    {id:"calendar",label:"Calendar",icon:"📅"},
+    {id:"inventory",label:"Inventory ("+(inventory.length)+")",icon:"🌱"},
+    {id:"finance",label:"Finance",icon:"💰"},
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:C.cream,fontFamily:"Georgia,serif"}}>
+      <div style={{background:C.dark,padding:"10px 16px",position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:1040,margin:"0 auto",display:"flex",alignItems:"center",gap:0,overflowX:"auto"}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.cream,fontFamily:"Georgia,serif",whiteSpace:"nowrap",marginRight:16,flexShrink:0}}>
+            <span style={{color:C.red}}>☕</span> Untamed Roastery
+          </div>
+          <div style={{display:"flex",gap:4,flexShrink:0}}>
+            {tabs.map(function(t){
+              var active=activeTab===t.id;
+              return (
+                <button key={t.id} onClick={function(){ setActiveTab(t.id); }}
+                  style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:active?700:400,background:active?C.red:"transparent",color:active?C.cream:C.mocha,whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                  {t.icon} {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1040,margin:"0 auto",padding:"16px 14px",width:"100%",boxSizing:"border-box"}}>
+
+        {activeTab==="calc"&&(
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+              <div onClick={function(){ setCalcMode("single"); }} style={{border:"2px solid "+(calcMode==="single"?C.red:C.tan),borderRadius:12,padding:"12px 16px",cursor:"pointer",background:calcMode==="single"?"rgba(217,80,53,0.06)":"rgba(255,255,255,0.7)"}}>
+                <div style={{fontSize:18,marginBottom:4}}>⚙️</div>
+                <div style={{fontWeight:700,color:calcMode==="single"?C.red:C.espresso,fontSize:14}}>Single Order</div>
+                <div style={{fontSize:11,color:C.mocha}}>One bean, one or more machines</div>
+              </div>
+              <div onClick={function(){ setCalcMode("multi"); }} style={{border:"2px solid "+(calcMode==="multi"?C.red:C.tan),borderRadius:12,padding:"12px 16px",cursor:"pointer",background:calcMode==="multi"?"rgba(217,80,53,0.06)":"rgba(255,255,255,0.7)"}}>
+                <div style={{fontSize:18,marginBottom:4}}>⚡</div>
+                <div style={{fontWeight:700,color:calcMode==="multi"?C.red:C.espresso,fontSize:14}}>Multi-Track</div>
+                <div style={{fontSize:11,color:C.mocha}}>Multiple beans and machines at once</div>
+              </div>
+            </div>
+
+            {calcMode==="single"&&(
+              <SingleOrderCalc
+                order={order} setOrderField={setOrderField}
+                inventory={inventory}
+                roundStates={roundStates} roundNotes={roundNotes}
+                toggleRound={toggleRoundSingle} setNote={setNote}
+                onSave={function(entry){
+                  saveSession([entry]);
+                  setActiveTab("log");
+                  setRoundStates({});
+                  setRoundNotes({});
+                }}
+              />
+            )}
+
+            {calcMode==="multi"&&(
+              <MultiTrackSession
+                inventory={inventory}
+                onSaveSession={saveSession}
+                persistedTracks={tracks}
+                onTracksChange={setTracks}
+                sessionName={sessionName}
+                onSessionNameChange={setSessionName}
+                globalTimer={globalTimer}
+                onTimerChange={setGlobalTimer}
+                sessionRunning={sessionRunning}
+                onSessionRunningChange={setSessionRunning}
+                savedTrackIds={savedTrackIds}
+                onSavedTrackIdsChange={setSavedTrackIds}
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab==="log"&&(
+          <div>
+            <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+              <input value={logSearch} onChange={function(e){ setLogSearch(e.target.value); }} placeholder="Search client or machine..."
+                style={{flex:1,minWidth:180,border:"1.5px solid "+C.tan,borderRadius:10,padding:"9px 14px",fontFamily:"Georgia,serif",fontSize:13,color:C.dark,background:"rgba(255,255,255,0.9)",outline:"none"}}/>
+              <select value={logStatusFilter} onChange={function(e){ setLogStatusFilter(e.target.value); }}
+                style={{border:"1.5px solid "+C.tan,borderRadius:10,padding:"9px 12px",fontFamily:"Georgia,serif",fontSize:12,color:C.dark,background:"rgba(255,255,255,0.9)",outline:"none"}}>
+                {STATUS_OPTIONS_NAV.map(function(s){ return <option key={s.id} value={s.id}>{s.label}</option>; })}
+              </select>
+              <button onClick={function(){
+                var NL=String.fromCharCode(10);
+                var H=["Date","Client","Channel","Format","Roast Level","Weight (kg)","Machines","Revenue ($)","Cost ($)","Profit ($)","Margin %","Bean Origin","Status","Notes"];
+                var rows=[H];
+                filteredLog.forEach(function(e){
+                  function q(v){ return '"'+String(v||"").replace(/"/g,'""')+'"'; }
+                  var rev=(e.sellPricePerKg||0)*(e.grams/1000);
+                  rows.push([
+                    new Date(e.id).toLocaleDateString(),q(e.client||""),
+                    q((CHANNELS.find(function(c){ return c.id===(e.channel||"retail"); })||CHANNELS[0]).label),
+                    q(e.format||""),q(e.level||""),((e.grams||0)/1000).toFixed(3),
+                    q(e.machines||""),rev.toFixed(2),(e.totalCost||0).toFixed(2),
+                    (rev-(e.totalCost||0)).toFixed(2),
+                    rev>0?((rev-(e.totalCost||0))/rev*100).toFixed(1)+"":"",
+                    q(e.beanOrigin||""),q(e.status||""),q(e.orderNote||"")
+                  ]);
+                });
+                var csv=rows.map(function(r){ return r.join(","); }).join(NL);
+                var a=document.createElement("a");
+                a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+                a.download="untamed-order-log-"+new Date().toISOString().slice(0,10)+".csv";
+                a.click();
+              }} style={{background:C.espresso,color:C.cream,border:"none",borderRadius:10,padding:"9px 16px",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+                ↓ Export CSV
+              </button>
+            </div>
+            {filteredLog.length===0?(
+              <div style={{textAlign:"center",padding:"48px 0",color:C.mocha}}>
+                <div style={{fontSize:40,marginBottom:10}}>📋</div>
+                <div style={{fontStyle:"italic"}}>{log.length===0?"No orders yet. Calculate your first roast!":"No results match your search."}</div>
+              </div>
+            ):(
+              filteredLog.map(function(entry){
+                return (
+                  <LogEntryCard key={entry.id} entry={entry}
+                    onDelete={deleteEntry}
+                    onStatusChange={function(s){ updateStatus(entry.id,s); }}
+                    onNoteChange={updateEntry}
+                  />
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab==="calendar"&&(
+          <CalendarTab log={log} schedule={schedule} onScheduleChange={setSchedule}/>
+        )}
+
+        {activeTab==="inventory"&&(
+          <InventoryTab inventory={inventory} setInventory={setInventory} log={log} beanCatalog={beanCatalog} setBeanCatalog={setBeanCatalog} packagingInv={packagingInv} setPackagingInv={setPackagingInv}/>
+        )}
+
+        {activeTab==="finance"&&(
+          <FinanceTab log={log} inventory={inventory}/>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
   </script>
   <script>
     var s=document.getElementById('app-source').textContent;
