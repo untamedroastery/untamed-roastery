@@ -2441,6 +2441,7 @@ function RoastCalc(){
   var bcS=useState([]); var beanCatalog=bcS[0]; var setBeanCatalog=bcS[1];
   var piS=useState([]); var packagingInv=piS[0]; var setPackagingInv=piS[1];
   var srS=useState(false); var storageReady=srS[0]; var setStorageReady=srS[1];
+  var slS=useState(false); var sessionLoaded=slS[0]; var setSessionLoaded=slS[1];
   var lsesS=useState(null); var liveSession=lsesS[0]; var setLiveSession=lsesS[1];
 
 
@@ -2449,14 +2450,20 @@ function RoastCalc(){
     var keys = [
       ["log",setLog],["schedule",setSchedule],["inventory",setInventory],
       ["costs",setCosts],["beanCatalog",setBeanCatalog],["packagingInv",setPackagingInv],
-      ["liveSession",setLiveSession],
+      ["liveSession",setLiveSession]
+    ];
+    var sessionKeys = [
       ["activeTracks",setTracks],["activeSessionName",setSessionName],["activeGlobalTimer",setGlobalTimer]
     ];
     Promise.all(keys.map(function(pair){ return db.collection("untamed-roastery").doc(pair[0]).get(); }))
       .then(function(snaps){
         snaps.forEach(function(snap,i){ if(snap.exists&&snap.data()&&snap.data().value!=null) keys[i][1](snap.data().value); });
-        setStorageReady(true);
-      }).catch(function(){ setStorageReady(true); });
+        // Load active session data once (no live listener to avoid overwrite loop)
+        return Promise.all(sessionKeys.map(function(pair){ return db.collection("untamed-roastery").doc(pair[0]).get(); }));
+      }).then(function(snaps){
+        snaps.forEach(function(snap,i){ if(snap.exists&&snap.data()&&snap.data().value!=null) sessionKeys[i][1](snap.data().value); });
+        setStorageReady(true); setSessionLoaded(true);
+      }).catch(function(){ setStorageReady(true); setSessionLoaded(true); });
     var unsubs = keys.map(function(pair){
       return db.collection("untamed-roastery").doc(pair[0]).onSnapshot(function(snap){
         if(snap.exists&&snap.data()&&snap.data().value!=null) pair[1](snap.data().value);
@@ -2474,13 +2481,13 @@ function RoastCalc(){
   useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
   // ── Persist tracks to Firebase (survives refresh) ──
-  useEffect(function(){ if(!storageReady)return; fbSet("activeTracks",tracks); },[tracks,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("activeSessionName",sessionName); },[sessionName,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("activeGlobalTimer",globalTimer); },[globalTimer,storageReady]);
+  useEffect(function(){ if(!sessionLoaded)return; fbSet("activeTracks",tracks); },[tracks,sessionLoaded]);
+  useEffect(function(){ if(!sessionLoaded)return; fbSet("activeSessionName",sessionName); },[sessionName,sessionLoaded]);
+  useEffect(function(){ if(!sessionLoaded)return; fbSet("activeGlobalTimer",globalTimer); },[globalTimer,sessionLoaded]);
 
   // ── Live session sync (always push when tracks have real data) ──
   useEffect(function(){
-    if(!storageReady) return;
+    if(!sessionLoaded) return;
     var hasRealTrack = tracks&&tracks.some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; });
     if(!hasRealTrack){ fbSet("liveSession",null); return; }
     fbSet("liveSession",{
@@ -2488,7 +2495,7 @@ function RoastCalc(){
       globalTimer:globalTimer, sessionRunning:sessionRunning,
       updatedAt:Date.now(), active:true
     });
-  },[tracks,sessionName,globalTimer,sessionRunning,storageReady]);
+  },[tracks,sessionName,globalTimer,sessionRunning,sessionLoaded]);
 
   var tabS=useState("calc"); var activeTab=tabS[0]; var setActiveTab=tabS[1];
   var modeS=useState("single"); var calcMode=modeS[0]; var setCalcMode=modeS[1];
@@ -2553,10 +2560,14 @@ function RoastCalc(){
 
       <div style={{maxWidth:1040,margin:"0 auto",padding:"16px 14px",width:"100%",boxSizing:"border-box"}}>
 
+        {liveSession&&liveSession.active&&(liveSession.tracks||[]).some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; })&&activeTab!=="calc"&&(
+          <LiveSessionViewer session={liveSession} inventory={inventory}/>
+        )}
+
         {activeTab==="calc"&&(
           <div>
 
-            {liveSession&&liveSession.active&&calcMode!=="multi"&&(liveSession.tracks||[]).some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; })&&(
+            {liveSession&&liveSession.active&&(liveSession.tracks||[]).some(function(t){ return (t.grams>0||t.gramsInput)&&t.machineId; })&&calcMode!=="multi"&&(
               <LiveSessionViewer session={liveSession} inventory={inventory}/>
             )}
 
