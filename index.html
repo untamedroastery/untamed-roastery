@@ -252,15 +252,29 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
 
   return (
     <div style={{border:"1.5px solid "+C.tan,borderRadius:14,overflow:"hidden",marginBottom:10,background:C.white}}>
-      <div style={{display:"flex",alignItems:"center",padding:"11px 14px",cursor:"pointer",gap:0,flexWrap:"wrap"}} onClick={function(){ setExpanded(function(v){ return !v; }); }}>
-        <div style={{flex:"1 1 120px",minWidth:0}}>
-          <div style={{fontWeight:700,color:editing?"#2563eb":C.dark,fontSize:13,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.client||"—"}{editing&&" ✏️"}</div>
-          <div style={{fontSize:10,color:C.mocha,marginTop:2}}>📅 {fmtDate(entry.id)}</div>
+      <div style={{display:"flex",alignItems:"center",padding:"13px 16px",cursor:"pointer",gap:10,flexWrap:"wrap"}} onClick={function(){ setExpanded(function(v){ return !v; }); }}>
+
+        <div style={{flex:"1 1 180px",minWidth:0}}>
+          <div style={{fontWeight:700,color:editing?"#2563eb":C.dark,fontSize:16,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.2}}>
+            {e.client||"—"}{editing&&" ✏️"}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4,flexWrap:"wrap"}}>
+            {e.isMultiTrack&&<span style={{fontSize:9,letterSpacing:0.8,color:C.mocha,background:C.cream,border:"1px solid "+C.tan,borderRadius:8,padding:"1px 6px",textTransform:"uppercase"}}>Multi-track</span>}
+            {e.beanOrigin&&<span style={{fontSize:11,color:C.espresso,fontWeight:600,background:C.tan+"50",borderRadius:8,padding:"1px 8px"}}>{e.beanOrigin}</span>}
+            <span style={{fontSize:11,color:C.mocha}}>{fmtDate(entry.id)}</span>
+          </div>
         </div>
-        <div style={{flex:"0 0 auto",fontSize:12,color:C.mocha,paddingRight:8,whiteSpace:"nowrap"}}>{e.machines}</div>
-        <div style={{flex:"0 0 auto",textAlign:"right",paddingRight:8}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.espresso}}>{fmtW(e.grams)}</div>
-          <div style={{fontSize:10,color:C.mocha}}>{e.format}·{e.level}</div>
+
+        <div style={{flex:"0 0 auto",textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1,paddingRight:4}}>
+          <div style={{fontSize:14,fontWeight:800,color:C.espresso,fontFamily:"Georgia,serif",lineHeight:1}}>{e.completedRounds>0?fmtW(Math.round((e.completedRounds/(e.rounds||1))*e.grams)):fmtW(e.grams)}</div>
+          <div style={{fontSize:10,color:C.mocha}}>{e.level} · {e.format}</div>
+          {e.completedRounds>0&&<div style={{fontSize:9,color:e.completedRounds===e.rounds?"#16a34a":"#d97706",fontWeight:700}}>{e.completedRounds}/{e.rounds} rounds</div>}
+        </div>
+
+        <div style={{flex:"0 0 auto",textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1,paddingRight:4}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>{fmtT(e.roastTime)}</div>
+          <div style={{fontSize:9,color:C.mocha,whiteSpace:"nowrap"}}>roast time</div>
+          <div style={{fontSize:10,color:C.mocha,whiteSpace:"nowrap"}}>{e.machines}</div>
         </div>
         <div style={{flex:"0 0 auto",paddingRight:8}} onClick={function(ev){ ev.stopPropagation(); }}>
           <select value={entry.status||"pending"} onChange={function(ev){ ev.stopPropagation(); onStatusChange(ev.target.value); }}
@@ -330,17 +344,48 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
           )}
 
           {!editing&&(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:12}}>
-              {[
-                {l:"Green Beans Sourced",v:fmtW(e.greenNeeded)},{l:"Roast Loss",v:"~"+(e.lossPercent||16)+"%"},
-                {l:"Wastage",v:fmtW(e.wastage)},{l:"Roasted At",v:fmtDateFull(entry.id)},
-                {l:"Roast Time",v:fmtT(e.roastTime)},{l:"Cool Time",v:fmtT(e.coolTime)},{l:"Track Start",v:e.trackStartTime||"—"},
-              ].map(function(s){ return (
-                <div key={s.l} style={{background:C.white,borderRadius:10,padding:"10px 12px",border:"1px solid "+C.tan}}>
-                  <div style={{fontSize:10,color:C.mocha,marginBottom:3,letterSpacing:1,textTransform:"uppercase"}}>{s.l}</div>
-                  <div style={{fontSize:14,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>{s.v}</div>
+            <div style={{marginBottom:14}}>
+
+              <div style={{background:C.espresso,borderRadius:12,padding:"14px 18px",marginBottom:12}}>
+                <div style={{fontSize:9,color:C.tan,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>What happened</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:18,alignItems:"flex-start"}}>
+
+                  <div style={{flex:"1 1 auto",minWidth:120}}>
+                    <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1.1}}>{e.beanOrigin||e.client||"—"}</div>
+                    <div style={{fontSize:12,color:C.tan,marginTop:3}}>{e.level} · {e.format} · {e.machines}</div>
+                    <div style={{fontSize:11,color:"#a87c6a",marginTop:2}}>{fmtDateFull(entry.id)}{e.trackStartTime?" · started "+e.trackStartTime:""}</div>
+                  </div>
+
+                  <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                    <div>
+                      <div style={{fontSize:9,color:C.tan,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Actually roasted</div>
+                      <div style={{fontSize:22,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1}}>{e.completedRounds>0?fmtW(Math.round((e.completedRounds/(e.rounds||1))*e.grams)):fmtW(e.grams)}</div>
+                      {e.completedRounds>0&&<div style={{fontSize:10,color:e.completedRounds===e.rounds?"#86efac":"#fbbf24",marginTop:2,fontWeight:600}}>{e.completedRounds}/{e.rounds} rounds {e.completedRounds===e.rounds?"✓":"(partial)"}</div>}
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,color:C.tan,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Roast time</div>
+                      <div style={{fontSize:22,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1}}>{fmtT(e.roastTime)}</div>
+                      <div style={{fontSize:10,color:C.mocha,marginTop:2}}>+ {fmtT(e.coolTime)} cooling</div>
+                    </div>
+                  </div>
+
                 </div>
-              ); })}
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:10}}>
+                {[
+                  {l:"Green Beans Used",v:fmtW(e.greenNeeded)},
+                  {l:"Wastage",v:fmtW(e.wastage)+" (~"+(e.lossPercent||16)+"% loss)"},
+                  {l:"Saved to log",v:fmtDateFull(entry.id)},
+                  ...(e.completedRounds!=null&&e.completedRounds<e.rounds?[{l:"Target (full batch)",v:fmtW(e.grams)+" over "+e.rounds+" rounds"}]:[]),
+                ].map(function(s){ return (
+                  <div key={s.l} style={{background:C.white,borderRadius:8,padding:"8px 11px",border:"1px solid "+C.tan}}>
+                    <div style={{fontSize:9,color:C.mocha,marginBottom:2,letterSpacing:1,textTransform:"uppercase"}}>{s.l}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:C.espresso,fontFamily:"Georgia,serif"}}>{s.v}</div>
+                  </div>
+                ); })}
+              </div>
+
             </div>
           )}
 
@@ -358,7 +403,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
               <div style={{display:"flex",gap:10,alignItems:"flex-end",flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:120}}>
                   <div style={{fontSize:11,color:C.mocha,marginBottom:4}}>Sell price ($/kg)</div>
-                  <input type="number" defaultValue={entry.sellPricePerKg||""} placeholder="0.00"
+                  <input type="number" defaultValue={entry.sellPricePerKg?parseFloat(entry.sellPricePerKg).toFixed(2):""} placeholder="0.00"
                     onBlur={function(ev){
                       var updated=Object.assign({},entry,{sellPricePerKg:parseFloat(ev.target.value)||0});
                       var revenue=updated.sellPricePerKg*(updated.grams/1000);
