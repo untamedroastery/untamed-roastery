@@ -2476,7 +2476,8 @@ function RoastCalc(){
   // When tracks change AND we are the owner, push to Firebase
   useEffect(function(){
     if(!storageReady||!isLiveOwner) return;
-    if(!tracks||tracks.length===0){ fbSet("liveSession",null); return; }
+    var hasRealTrack = tracks&&tracks.some(function(t){ return t.grams>0&&t.machineId; });
+    if(!hasRealTrack){ fbSet("liveSession",null); return; }
     fbSet("liveSession",{
       tracks:tracks, sessionName:sessionName,
       globalTimer:globalTimer, sessionRunning:sessionRunning,
@@ -2550,11 +2551,11 @@ function RoastCalc(){
         {activeTab==="calc"&&(
           <div>
 
-            {liveSession&&liveSession.active&&!isLiveOwner&&(
+            {liveSession&&liveSession.active&&!isLiveOwner&&(liveSession.tracks||[]).some(function(t){ return t.grams>0&&t.machineId; })&&(
               <LiveSessionViewer session={liveSession} inventory={inventory}/>
             )}
 
-            {liveSession&&liveSession.active&&isLiveOwner&&(
+            {liveSession&&liveSession.active&&isLiveOwner&&(liveSession.tracks||[]).some(function(t){ return t.grams>0&&t.machineId; })&&(
               <div style={{background:"#1a1008",borderRadius:10,padding:"8px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#F0E4CC"}}>
                 <span style={{width:8,height:8,borderRadius:"50%",background:"#4ade80",display:"inline-block",flexShrink:0,boxShadow:"0 0 6px #4ade80"}}/>
                 <span>Live session active — everyone can see the roast in real-time</span>
