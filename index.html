@@ -9,34 +9,21 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script>
-    firebase.initializeApp({
-      apiKey:"AIzaSyDZjDQAjqZEz_jeyk1MxdHNCb4dd58UBlM",
-      authDomain:"untamed-roastery.firebaseapp.com",
-      projectId:"untamed-roastery",
-      storageBucket:"untamed-roastery.firebasestorage.app",
-      messagingSenderId:"631803917381",
-      appId:"1:631803917381:web:43e737ea015f44ce215f2c"
-    });
+    firebase.initializeApp({apiKey:"AIzaSyDZjDQAjqZEz_jeyk1MxdHNCb4dd58UBlM",authDomain:"untamed-roastery.firebaseapp.com",projectId:"untamed-roastery",storageBucket:"untamed-roastery.firebasestorage.app",messagingSenderId:"631803917381",appId:"1:631803917381:web:43e737ea015f44ce215f2c"});
     window.__db = firebase.firestore();
   </script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{overflow-x:hidden;max-width:100vw}
-    body{background:#F0E4CC}
-    #root{min-height:100vh;overflow-x:hidden}
+    *{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:hidden;max-width:100vw}body{background:#F0E4CC}#root{min-height:100vh;overflow-x:hidden}
     #syncBadge{position:fixed;bottom:12px;right:12px;background:#0C0C0C;color:#F0E4CC;font-size:11px;padding:6px 14px;border-radius:20px;font-family:Georgia,serif;z-index:9999;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(0,0,0,0.35)}
-    .sdot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
-    .sdot.pulse{background:#d97706;animation:blink 1s infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    .sdot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}.sdot.pulse{background:#d97706;animation:blink 1s infinite}@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
   </style>
 </head>
 <body>
   <div id="root"></div>
   <div id="syncBadge"><div class="sdot pulse" id="sdot"></div><span id="slabel">Connecting…</span></div>
   <script id="app-source" type="text/plain">
-var useState = React.useState;
-var useEffect = React.useEffect;
+var useState=React.useState;var useEffect=React.useEffect;
 
 const C = {
   cream:"#F0E4CC", red:"#D95035", dark:"#0C0C0C",
@@ -347,7 +334,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
               {[
                 {l:"Green Beans Sourced",v:fmtW(e.greenNeeded)},{l:"Roast Loss",v:"~"+(e.lossPercent||16)+"%"},
                 {l:"Wastage",v:fmtW(e.wastage)},{l:"Roasted At",v:fmtDateFull(entry.id)},
-                {l:"Roast Time",v:fmtT(e.roastTime)},{l:"Cool Time",v:fmtT(e.coolTime)},
+                {l:"Roast Time",v:fmtT(e.roastTime)},{l:"Cool Time",v:fmtT(e.coolTime)},{l:"Track Start",v:e.trackStartTime||"—"},
               ].map(function(s){ return (
                 <div key={s.l} style={{background:C.white,borderRadius:10,padding:"10px 12px",border:"1px solid "+C.tan}}>
                   <div style={{fontSize:10,color:C.mocha,marginBottom:3,letterSpacing:1,textTransform:"uppercase"}}>{s.l}</div>
@@ -1234,7 +1221,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
   var C2 = {cream:"#F0E4CC",red:"#D95035",dark:"#0C0C0C",tan:"#D1BA9B",mocha:"#997C6F",espresso:"#47322F",white:"#FFFFFF"};
   var TRACK_COLORS = ["#D95035","#2563eb","#16a34a","#7c3aed","#d97706","#0891b2"];
 
-  function newTrack(){ return {id:Date.now()+Math.random(),machineId:"",beanId:"",roastLevel:"medium",gramsInput:"",gramsUnit:"g",grams:0,roundStates:{},roundNotes:{},notes:"",channel:"retail",marginPct:75}; }
+  function newTrack(){ return {id:Date.now()+Math.random(),machineId:"",beanId:"",roastLevel:"medium",gramsInput:"",gramsUnit:"g",grams:0,roundStates:{},roundNotes:{},notes:"",channel:"retail",marginPct:75,startTime:""}; }
 
   // Use persisted state from parent (survives tab switches)
   var tracks = persistedTracks || [newTrack(),newTrack()];
@@ -1309,6 +1296,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
       sellPricePerKg:sellPricePerKg,
       margin:sellPricePerKg?(sellPricePerKg*(t.grams/1000)-((bean?bean.costPerKg||0:0)*Math.ceil(t.grams/(1-loss))/1000)):null,
       beanOrigin:bean?bean.origin:null,beanOriginId:t.beanId||null,
+      trackStartTime:t.startTime||null,
       greenCostPerKg:bean?bean.costPerKg||0:null,
       totalCost:bean?((bean.costPerKg||0)*Math.ceil(t.grams/(1-loss))/1000):null,
       sessionDuration:globalTimer,isMultiTrack:true,
@@ -1385,6 +1373,14 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
             </div>
 
             <div style={{padding:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,background:"rgba(0,0,0,0.05)",borderRadius:9,padding:"7px 10px"}}>
+                <span style={{fontSize:13}}>&#9201;</span>
+                <span style={{fontSize:11,color:C2.mocha,whiteSpace:"nowrap",fontFamily:"Georgia,serif"}}>Start time:</span>
+                <input type="text" value={track.startTime||""} onChange={function(e){ updateTrack(track.id,{startTime:e.target.value}); }}
+                  placeholder="e.g. 9:00 AM"
+                  style={{flex:1,background:"rgba(255,255,255,0.85)",border:"1.5px solid "+(track.startTime?color:C2.tan),borderRadius:7,padding:"5px 10px",fontFamily:"Georgia,serif",fontSize:12,color:C2.espresso,fontWeight:track.startTime?700:400,outline:"none"}}
+                />
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:10}}>
                 <div>
                   <div style={{fontSize:10,letterSpacing:1.5,color:C2.mocha,textTransform:"uppercase",marginBottom:5}}>Machine</div>
@@ -2785,17 +2781,12 @@ function RoastCalc(){
 
   </script>
   <script>
-    var appScript = document.getElementById('app-source').textContent;
-    var transformed = Babel.transform(appScript, {presets:['react'],sourceType:'script'}).code;
-    var useState = React.useState;
-    var useEffect = React.useEffect;
-    eval(transformed);
-    var root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(RoastCalc, null));
-    setTimeout(function(){
-      document.getElementById('sdot').classList.remove('pulse');
-      document.getElementById('slabel').textContent = 'Live sync ✓';
-    }, 2500);
+    var s=document.getElementById('app-source').textContent;
+    var t=Babel.transform(s,{presets:['react'],sourceType:'script'}).code;
+    var useState=React.useState;var useEffect=React.useEffect;
+    eval(t);
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(RoastCalc,null));
+    setTimeout(function(){document.getElementById('sdot').classList.remove('pulse');document.getElementById('slabel').textContent='Live sync ✓';},2500);
   </script>
 </body>
 </html>
