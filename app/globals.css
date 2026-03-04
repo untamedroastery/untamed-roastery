@@ -52,8 +52,29 @@ body {
 }
 
 /* Table hover row */
+.table-row-hover {
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+.table-row-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(232, 75, 26, 0.06) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  pointer-events: none;
+  transition: none;
+}
 .table-row-hover:hover {
-  background-color: rgba(232, 75, 26, 0.04);
+  background-color: rgba(232, 75, 26, 0.03);
+}
+.table-row-hover:hover::after {
+  animation: scan-sweep 0.6s ease-out forwards;
 }
 
 /* Focus styles */
@@ -62,4 +83,176 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(232, 75, 26, 0.08);
+}
+
+/* ─── KEYFRAME ANIMATIONS ─── */
+
+/* Scan-line sweep across element */
+@keyframes scan-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Horizontal scan-line bar */
+@keyframes scan-line {
+  0% { top: -2px; opacity: 1; }
+  100% { top: calc(100% + 2px); opacity: 0; }
+}
+
+/* Subtle pulse glow */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 75, 26, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(232, 75, 26, 0.15); }
+}
+
+/* Flicker for live indicator */
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+
+/* Button click ripple */
+@keyframes btn-ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* Fade-in from bottom */
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Number decode flicker */
+@keyframes decode-flicker {
+  0%, 20% { opacity: 0.4; }
+  25%, 100% { opacity: 1; }
+}
+
+/* Border glow pulse */
+@keyframes border-glow {
+  0%, 100% { border-color: var(--border-color); }
+  50% { border-color: var(--accent); }
+}
+
+/* Glitch X shift */
+@keyframes glitch-x {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+/* Corner bracket reveal */
+@keyframes corner-reveal {
+  0% { width: 0; height: 0; opacity: 0; }
+  100% { width: 8px; height: 8px; opacity: 1; }
+}
+
+/* ─── ANIMATION UTILITY CLASSES ─── */
+
+.animate-scan-line {
+  position: relative;
+  overflow: hidden;
+}
+.animate-scan-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.animate-scan-line:hover::before {
+  animation: scan-line 0.5s ease-out;
+}
+
+/* Live dot pulse */
+.live-dot {
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+/* Button with ripple */
+.btn-interactive {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.btn-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.08);
+}
+.btn-interactive:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+
+/* Card hover with corner brackets */
+.card-hover {
+  position: relative;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.card-hover::before,
+.card-hover::after {
+  content: '';
+  position: absolute;
+  border: 1px solid var(--accent);
+  opacity: 0;
+  transition: all 0.25s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+.card-hover::before {
+  top: -3px;
+  left: -3px;
+  width: 0;
+  height: 0;
+  border-right: none;
+  border-bottom: none;
+}
+.card-hover::after {
+  bottom: -3px;
+  right: -3px;
+  width: 0;
+  height: 0;
+  border-left: none;
+  border-top: none;
+}
+.card-hover:hover::before,
+.card-hover:hover::after {
+  width: 12px;
+  height: 12px;
+  opacity: 1;
+}
+.card-hover:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 16px rgba(232, 75, 26, 0.06);
+}
+
+/* Status badge pulse for active */
+.badge-pulse {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* Fade-in stagger utility */
+.stagger-fade-in > * {
+  opacity: 0;
+  animation: fade-up 0.4s ease forwards;
+}
+.stagger-fade-in > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-fade-in > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-fade-in > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-fade-in > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-fade-in > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-fade-in > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* Glitch on hover */
+.glitch-hover:hover {
+  animation: glitch-x 0.3s ease;
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus } from "lucide-react";
 import { BEAN_CATALOG } from "@/lib/data";
 
 export function InventoryPanel() {
@@ -14,13 +15,15 @@ export function InventoryPanel() {
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
           -- BEAN INVENTORY
         </span>
-        <button
-          className="flex items-center gap-1.5 border border-foreground bg-surface px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-foreground transition-colors hover:bg-foreground hover:text-surface"
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          className="btn-interactive flex items-center gap-1.5 border border-foreground bg-surface px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-foreground hover:bg-foreground hover:text-surface"
           style={{ borderRadius: "var(--radius)" }}
         >
           <Plus className="h-3 w-3" />
           Add Bean
-        </button>
+        </motion.button>
       </div>
 
       {/* Accordion rows */}
@@ -42,7 +45,9 @@ export function InventoryPanel() {
                 <span className="font-mono text-xs font-semibold text-foreground">
                   {bean.stockKg}kg
                 </span>
-                <div
+                <motion.div
+                  animate={{ rotate: isOpen ? 45 : 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   className={`flex h-6 w-6 items-center justify-center border transition-colors ${
                     isOpen
                       ? "border-accent bg-accent text-surface"
@@ -50,59 +55,68 @@ export function InventoryPanel() {
                   }`}
                   style={{ borderRadius: "var(--radius)" }}
                 >
-                  {isOpen ? (
-                    <span className="text-xs font-bold">{"x"}</span>
-                  ) : (
-                    <Plus className="h-3 w-3" />
-                  )}
-                </div>
+                  <Plus className="h-3 w-3" />
+                </motion.div>
               </div>
             </button>
 
-            {isOpen && (
-              <div className="border-t border-border bg-background px-5 py-4">
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
-                      Processing
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-foreground">
-                      {bean.processing}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
-                      Cost / KG
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-foreground">
-                      ${bean.costPerKg.toFixed(2)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
-                      Stock Level
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 bg-border">
-                        <div
-                          className="h-full bg-accent"
-                          style={{ width: `${Math.min((bean.stockKg / 60) * 100, 100)}%` }}
-                        />
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  key={bean.id}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="border-t border-border bg-background px-5 py-4">
+                    <div className="stagger-fade-in grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <div>
+                        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+                          Processing
+                        </div>
+                        <div className="mt-1 text-sm font-medium text-foreground">
+                          {bean.processing}
+                        </div>
                       </div>
-                      <span className="font-mono text-[10px] text-muted">{bean.stockKg}kg</span>
+                      <div>
+                        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+                          Cost / KG
+                        </div>
+                        <div className="mt-1 text-sm font-medium text-foreground">
+                          ${bean.costPerKg.toFixed(2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+                          Stock Level
+                        </div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden bg-border">
+                            <motion.div
+                              className="h-full bg-accent"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min((bean.stockKg / 60) * 100, 100)}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                            />
+                          </div>
+                          <span className="font-mono text-[10px] text-muted">{bean.stockKg}kg</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+                          Total Value
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-foreground">
+                          ${(bean.costPerKg * bean.stockKg).toFixed(2)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
-                      Total Value
-                    </div>
-                    <div className="mt-1 text-sm font-semibold text-foreground">
-                      ${(bean.costPerKg * bean.stockKg).toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       })}

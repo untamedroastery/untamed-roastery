@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { SAMPLE_ORDERS, fmtWeight, fmtTime, type OrderEntry } from "@/lib/data";
 import { StatusBadge } from "./status-badge";
@@ -11,6 +12,7 @@ type SortDir = "asc" | "desc";
 export function DataTable() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [clickedRow, setClickedRow] = useState<number | null>(null);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -19,6 +21,11 @@ export function DataTable() {
       setSortKey(key);
       setSortDir("desc");
     }
+  }
+
+  function handleRowClick(id: number) {
+    setClickedRow(id);
+    setTimeout(() => setClickedRow(null), 400);
   }
 
   const sorted = [...SAMPLE_ORDERS].sort((a, b) => {
@@ -57,28 +64,49 @@ export function DataTable() {
                 key={col.key}
                 onClick={() => handleSort(col.key)}
                 className={`
-                  cursor-pointer whitespace-nowrap px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-foreground
+                  cursor-pointer whitespace-nowrap px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-accent
                   ${col.align === "right" ? "text-right" : "text-left"}
                 `}
               >
                 <span className="inline-flex items-center gap-1">
                   {col.label}
-                  {sortKey === col.key &&
-                    (sortDir === "asc" ? (
-                      <ChevronUp className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    ))}
+                  <AnimatePresence mode="wait">
+                    {sortKey === col.key && (
+                      <motion.span
+                        key={sortDir}
+                        initial={{ opacity: 0, y: sortDir === "asc" ? 4 : -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: sortDir === "asc" ? -4 : 4 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {sortDir === "asc" ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        )}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </span>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {sorted.map((order) => (
-            <tr
+          {sorted.map((order, index) => (
+            <motion.tr
               key={order.id}
-              className="table-row-hover border-b border-border last:border-b-0"
+              onClick={() => handleRowClick(order.id)}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25, delay: index * 0.04 }}
+              className={`
+                table-row-hover cursor-pointer border-b border-border last:border-b-0
+                ${clickedRow === order.id ? "!bg-accent/[0.08]" : ""}
+              `}
+              style={{
+                transition: clickedRow === order.id ? "background-color 0.1s ease" : undefined,
+              }}
             >
               <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted">
                 {order.date}
@@ -113,7 +141,7 @@ export function DataTable() {
               <td className="whitespace-nowrap px-4 py-3">
                 <StatusBadge status={order.status} />
               </td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>

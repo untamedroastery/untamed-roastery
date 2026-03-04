@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { TopNav } from "@/components/top-nav";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard } from "@/components/stat-card";
@@ -6,6 +9,39 @@ import { OrderForm } from "@/components/order-form";
 import { InventoryPanel } from "@/components/inventory-panel";
 import { MachineGrid } from "@/components/machine-grid";
 
+const sectionVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, delay: i * 0.1, ease: "easeOut" },
+  }),
+};
+
+function AnimatedButton({
+  children,
+  variant = "primary",
+}: {
+  children: React.ReactNode;
+  variant?: "primary" | "outline";
+}) {
+  return (
+    <motion.button
+      whileHover={{ y: -1, boxShadow: "0 2px 8px rgba(17,17,17,0.08)" }}
+      whileTap={{ y: 0, scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      className={`btn-interactive font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+        variant === "primary"
+          ? "bg-accent px-3 py-1.5 text-surface hover:bg-accent-hover"
+          : "border border-foreground bg-surface px-3 py-1.5 text-foreground hover:bg-foreground hover:text-surface"
+      }`}
+      style={{ borderRadius: "var(--radius)" }}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
@@ -13,7 +49,13 @@ export default function DashboardPage() {
 
       <main className="mx-auto max-w-[1400px] px-6 py-8">
         {/* ── STATS ROW ── */}
-        <section className="mb-10">
+        <motion.section
+          className="mb-10"
+          initial="hidden"
+          animate="visible"
+          custom={0}
+          variants={sectionVariants}
+        >
           <SectionHeader
             label="KEY METRICS"
             action={
@@ -48,36 +90,38 @@ export default function DashboardPage() {
               suffix="/kg"
             />
           </div>
-        </section>
+        </motion.section>
 
         {/* ── ORDER LOG TABLE ── */}
-        <section className="mb-10">
+        <motion.section
+          className="mb-10"
+          initial="hidden"
+          animate="visible"
+          custom={1}
+          variants={sectionVariants}
+        >
           <SectionHeader
             label="ORDER LOG"
             action={
               <div className="flex gap-2">
-                <button
-                  className="border border-foreground bg-surface px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-foreground transition-colors hover:bg-foreground hover:text-surface"
-                  style={{ borderRadius: "var(--radius)" }}
-                >
-                  Export CSV
-                </button>
-                <button
-                  className="bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-surface transition-colors hover:bg-accent-hover"
-                  style={{ borderRadius: "var(--radius)" }}
-                >
-                  + New Order
-                </button>
+                <AnimatedButton variant="outline">Export CSV</AnimatedButton>
+                <AnimatedButton variant="primary">+ New Order</AnimatedButton>
               </div>
             }
           />
           <div className="mt-4">
             <DataTable />
           </div>
-        </section>
+        </motion.section>
 
         {/* ── NEW ORDER FORM + INVENTORY SIDE-BY-SIDE ── */}
-        <section className="mb-10">
+        <motion.section
+          className="mb-10"
+          initial="hidden"
+          animate="visible"
+          custom={2}
+          variants={sectionVariants}
+        >
           <SectionHeader label="OPERATIONS" />
           <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div className="lg:col-span-3">
@@ -87,15 +131,21 @@ export default function DashboardPage() {
               <InventoryPanel />
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* ── MACHINES ── */}
-        <section className="mb-10">
+        <motion.section
+          className="mb-10"
+          initial="hidden"
+          animate="visible"
+          custom={3}
+          variants={sectionVariants}
+        >
           <SectionHeader label="MACHINES" />
           <div className="mt-4">
             <MachineGrid />
           </div>
-        </section>
+        </motion.section>
       </main>
 
       {/* ── FOOTER ── */}
