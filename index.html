@@ -2486,6 +2486,7 @@ function RoastCalc(){
           if(sess.tracks) setTracks(sess.tracks);
           if(sess.sessionName) setSessionName(sess.sessionName);
           if(sess.globalTimer) setGlobalTimer(sess.globalTimer);
+          if(typeof sess.sessionRunning==="boolean") setSessionRunning(sess.sessionRunning);
         }
         setStorageReady(true);
         setLoaded(true);
