@@ -2500,10 +2500,22 @@ function RoastCalc(){
       });
     });
 
-    // Live listener for activeSession (for Jacky's live view)
+    // Live listener for activeSession (for Jacky's live view AND track sync)
     var sesUnsub = db.collection("untamed-roastery").doc("activeSession").onSnapshot(function(snap){
       if(snap.exists && snap.data() && snap.data().value){
-        setLiveSession(snap.data().value);
+        var sessData = snap.data().value;
+        setLiveSession(sessData);
+        // Also sync tracks/session state so Jacky sees the full session
+        if(sessData.tracks && sessData.tracks.length > 0){
+          setTracks(function(current){
+            // Only update if current is null/empty (don't overwrite Ben's live edits)
+            if(!current || current.length === 0) return sessData.tracks;
+            return current;
+          });
+          if(sessData.sessionName) setSessionName(function(cur){ return cur || sessData.sessionName; });
+          if(sessData.globalTimer) setGlobalTimer(function(cur){ return cur || sessData.globalTimer; });
+          if(typeof sessData.sessionRunning==="boolean") setSessionRunning(function(cur){ return cur || sessData.sessionRunning; });
+        }
       } else {
         setLiveSession(null);
       }
