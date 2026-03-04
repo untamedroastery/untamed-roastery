@@ -2463,6 +2463,10 @@ function RoastCalc(){
   var srS=useState(false); var storageReady=srS[0]; var setStorageReady=srS[1];
   var lsesS=useState(null); var liveSession=lsesS[0]; var setLiveSession=lsesS[1];
   var loadedS=useState(false); var loaded=loadedS[0]; var setLoaded=loadedS[1];
+  var tracksS=useState(null); var tracks=tracksS[0]; var setTracks=tracksS[1];
+  var snS=useState(""); var sessionName=snS[0]; var setSessionName=snS[1];
+  var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
+  var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
 
   // ── Firebase: load everything once on mount ──
   useEffect(function(){
@@ -2556,10 +2560,6 @@ function RoastCalc(){
   function setOrderField(f,v){ setOrder(function(p){ return Object.assign({},p,{[f]:v}); }); }
   var rnS=useState({}); var roundNotes=rnS[0]; var setRoundNotes=rnS[1];
   var rsS=useState({}); var roundStates=rsS[0]; var setRoundStates=rsS[1];
-  var tracksS=useState(null); var tracks=tracksS[0]; var setTracks=tracksS[1];
-  var snS=useState(""); var sessionName=snS[0]; var setSessionName=snS[1];
-  var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
-  var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
   var stS=useState([]); var savedTrackIds=stS[0]; var setSavedTrackIds=stS[1];
   var lsS=useState(""); var logSearch=lsS[0]; var setLogSearch=lsS[1];
   var lsfS=useState("all"); var logStatusFilter=lsfS[0]; var setLogStatusFilter=lsfS[1];
