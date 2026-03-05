@@ -3086,6 +3086,7 @@ function RoastCalc(){
   var snS=useState(""); var sessionName=snS[0]; var setSessionName=snS[1];
   var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
   var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
+  var srkS=useState(0); var sessionResetKey=srkS[0]; var setSessionResetKey=srkS[1];
 
   // Track timestamp of our most recent write per key.
   // onSnapshot listeners ignore snapshots arriving within 3s of our own write (echo suppression).
@@ -3254,7 +3255,7 @@ function RoastCalc(){
               <span style={{fontSize:10,fontWeight:800,color:"#052e16",letterSpacing:1}}>LIVE SESSION</span>
             </div>
             <span>Active — everyone can see the roast in real-time</span>
-            <button onClick={function(){ fbSet("activeSession",null); setTracks(null); }}
+            <button onClick={function(){ fbSet("activeSession",null); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setSessionResetKey(function(k){ return k+1; }); }}
               style={{marginLeft:"auto",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 10px",cursor:"pointer",color:C.cream,fontFamily:"Georgia,serif",fontSize:10}}>
               End Live
             </button>
@@ -3293,6 +3294,7 @@ function RoastCalc(){
 
             {calcMode==="multi"&&(
               <MultiTrackSession
+                key={sessionResetKey}
                 inventory={inventory}
                 onSaveSession={saveSession}
                 persistedTracks={tracks}
