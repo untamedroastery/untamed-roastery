@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const NAV_ITEMS = ["DASHBOARD", "ORDERS", "INVENTORY", "MACHINES", "REPORTS"];
+const NAV_ITEMS = ["DASHBOARD", "ORDERS", "INVENTORY", "REPORTS"];
 
 export function TopNav() {
   const [active, setActive] = useState("DASHBOARD");

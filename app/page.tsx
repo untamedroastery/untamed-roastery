@@ -3,44 +3,21 @@
 import { motion } from "framer-motion";
 import { TopNav } from "@/components/top-nav";
 import { SectionHeader } from "@/components/section-header";
+import { HeroStat } from "@/components/hero-stat";
 import { StatCard } from "@/components/stat-card";
+import { MachineStatus } from "@/components/machine-status";
 import { DataTable } from "@/components/data-table";
 import { OrderForm } from "@/components/order-form";
 import { InventoryPanel } from "@/components/inventory-panel";
-import { MachineGrid } from "@/components/machine-grid";
 
 const sectionVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 16 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, delay: i * 0.1, ease: "easeOut" },
+    transition: { duration: 0.45, delay: 0.15 + i * 0.12, ease: "easeOut" },
   }),
 };
-
-function AnimatedButton({
-  children,
-  variant = "primary",
-}: {
-  children: React.ReactNode;
-  variant?: "primary" | "outline";
-}) {
-  return (
-    <motion.button
-      whileHover={{ y: -1, boxShadow: "0 2px 8px rgba(17,17,17,0.08)" }}
-      whileTap={{ y: 0, scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className={`btn-interactive font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
-        variant === "primary"
-          ? "bg-accent px-3 py-1.5 text-surface hover:bg-accent-hover"
-          : "border border-foreground bg-surface px-3 py-1.5 text-foreground hover:bg-foreground hover:text-surface"
-      }`}
-      style={{ borderRadius: "var(--radius)" }}
-    >
-      {children}
-    </motion.button>
-  );
-}
 
 export default function DashboardPage() {
   return (
@@ -48,14 +25,10 @@ export default function DashboardPage() {
       <TopNav />
 
       <main className="mx-auto max-w-[1400px] px-6 py-8">
-        {/* ── STATS ROW ── */}
-        <motion.section
-          className="mb-10"
-          initial="hidden"
-          animate="visible"
-          custom={0}
-          variants={sectionVariants}
-        >
+        {/* ═══════════════════════════════════════════
+            TIER 1 — HERO BLOCK  (dominant focal point)
+            ═══════════════════════════════════════════ */}
+        <section className="mb-8">
           <SectionHeader
             label="KEY METRICS"
             action={
@@ -64,37 +37,45 @@ export default function DashboardPage() {
               </span>
             }
           />
-          <div className="mt-4 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              value="29"
-              label="Total Roasts"
-              description="Completed batches this month across all machines."
-              suffix="#"
-            />
-            <StatCard
-              value="72"
-              label="Campaign Success"
-              description="Performance score and engagement statistics for Q1."
-              suffix="%"
-            />
-            <StatCard
-              value="169"
-              label="Kilos Produced"
-              description="Total roasted output in kg for current period."
-              suffix="kg"
-            />
-            <StatCard
-              value="$21"
-              label="Avg Cost/kg"
-              description="Weighted average green bean cost per kilogram."
-              suffix="/kg"
-            />
-          </div>
-        </motion.section>
 
-        {/* ── ORDER LOG TABLE ── */}
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
+            {/* Hero stat — takes 3 columns, tall, visually dominant */}
+            <div className="lg:col-span-3">
+              <HeroStat
+                value="169"
+                suffix="kg"
+                label="Kilos Produced"
+                subline="Total roasted output across all batches. Track cumulative weight, yield efficiency, and production velocity."
+              />
+            </div>
+
+            {/* Supporting stats — stacked vertically in 2 columns, smaller text, secondary weight */}
+            <div className="grid grid-cols-2 gap-px border border-border bg-border lg:col-span-2">
+              <StatCard value="29" label="Total Roasts" suffix="#" delay={0.15} />
+              <StatCard value="72" label="Success Rate" suffix="%" delay={0.2} />
+              <StatCard value="$21" label="Avg Cost/kg" suffix="/kg" delay={0.25} />
+              <StatCard
+                value="6"
+                label="Active Orders"
+                suffix="open"
+                delay={0.3}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════
+            TIER 1.5 — MACHINE STATUS (compact, informational strip)
+            ═══════════════════════════════════════════ */}
+        <section className="mb-8">
+          <MachineStatus />
+        </section>
+
+        {/* ═══════════════════════════════════════════
+            TIER 2 — ORDER LOG (primary working area)
+            ═══════════════════════════════════════════ */}
         <motion.section
-          className="mb-10"
+          className="mb-8"
           initial="hidden"
           animate="visible"
           custom={1}
@@ -104,8 +85,30 @@ export default function DashboardPage() {
             label="ORDER LOG"
             action={
               <div className="flex gap-2">
-                <AnimatedButton variant="outline">Export CSV</AnimatedButton>
-                <AnimatedButton variant="primary">+ New Order</AnimatedButton>
+                <motion.button
+                  whileHover={{
+                    y: -1,
+                    boxShadow: "0 2px 8px rgba(17,17,17,0.08)",
+                  }}
+                  whileTap={{ y: 0, scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="btn-interactive border border-foreground bg-surface px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-foreground hover:bg-foreground hover:text-surface"
+                  style={{ borderRadius: "var(--radius)" }}
+                >
+                  Export CSV
+                </motion.button>
+                <motion.button
+                  whileHover={{
+                    y: -1,
+                    boxShadow: "0 2px 8px rgba(232,75,26,0.15)",
+                  }}
+                  whileTap={{ y: 0, scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="btn-interactive bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-surface hover:bg-accent-hover"
+                  style={{ borderRadius: "var(--radius)" }}
+                >
+                  + New Order
+                </motion.button>
               </div>
             }
           />
@@ -114,7 +117,9 @@ export default function DashboardPage() {
           </div>
         </motion.section>
 
-        {/* ── NEW ORDER FORM + INVENTORY SIDE-BY-SIDE ── */}
+        {/* ═══════════════════════════════════════════
+            TIER 3 — OPERATIONS (form + inventory, lowest urgency)
+            ═══════════════════════════════════════════ */}
         <motion.section
           className="mb-10"
           initial="hidden"
@@ -130,20 +135,6 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <InventoryPanel />
             </div>
-          </div>
-        </motion.section>
-
-        {/* ── MACHINES ── */}
-        <motion.section
-          className="mb-10"
-          initial="hidden"
-          animate="visible"
-          custom={3}
-          variants={sectionVariants}
-        >
-          <SectionHeader label="MACHINES" />
-          <div className="mt-4">
-            <MachineGrid />
           </div>
         </motion.section>
       </main>
