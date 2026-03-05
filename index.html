@@ -3089,7 +3089,7 @@ function RoastCalc(){
 
   // Track timestamp of our most recent write per key.
   // onSnapshot listeners ignore snapshots arriving within 3s of our own write (echo suppression).
-  var lastWriteAt = useRef({});
+  var lastWriteAt = React.useRef({});
 
   // ── Firebase: load everything once on mount ──
   useEffect(function(){
