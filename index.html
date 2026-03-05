@@ -2143,9 +2143,11 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
   var localTracksS = useState(null); var localTracks = localTracksS[0]; var setLocalTracks = localTracksS[1];
   var userChangedS = useState(false); var userChanged = userChangedS[0]; var setUserChanged = userChangedS[1];
 
-  // Sync from parent when Firebase loads (persistedTracks goes from null -> real data)
+  // Sync from parent when Firebase loads (persistedTracks goes from null -> real data).
+  // Guard: skip if user has already made local changes, so that a late-arriving onSnapshot
+  // does not overwrite round check-offs or other edits the user just made.
   useEffect(function(){
-    if(persistedTracks !== null && persistedTracks !== undefined){
+    if(persistedTracks !== null && persistedTracks !== undefined && !userChanged){
       setLocalTracks(persistedTracks);
     }
   }, [persistedTracks]);
@@ -3085,6 +3087,10 @@ function RoastCalc(){
   var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
   var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
 
+  // Track timestamp of our most recent write per key.
+  // onSnapshot listeners ignore snapshots arriving within 3s of our own write (echo suppression).
+  var lastWriteAt = useRef({});
+
   // ── Firebase: load everything once on mount ──
   useEffect(function(){
     var db = window.__db;
@@ -3114,9 +3120,13 @@ function RoastCalc(){
       })
       .catch(function(){ setStorageReady(true); setLoaded(true); });
 
-    // Live listeners for standard data
+    // Live listeners for standard data.
+    // Echo suppression: skip snapshot if we wrote this key ourselves within the last 3 seconds.
     var unsubs = pairs.map(function(p){
       return db.collection("untamed-roastery").doc(p[0]).onSnapshot(function(snap){
+        var key = p[0];
+        var msSinceWrite = Date.now() - (lastWriteAt.current[key] || 0);
+        if(msSinceWrite < 3000) return; // our own write echoing back — ignore it
         if(snap.exists && snap.data() && snap.data().value!=null) p[1](snap.data().value);
       });
     });
@@ -3146,7 +3156,11 @@ function RoastCalc(){
     return function(){ unsubs.forEach(function(u){ u(); }); };
   },[]);
 
-  function fbSet(key,value){ if(!window.__db)return; window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){}); }
+  function fbSet(key,value){
+    if(!window.__db)return;
+    lastWriteAt.current[key] = Date.now();
+    window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){});
+  }
   useEffect(function(){ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
   useEffect(function(){ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
   useEffect(function(){ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
@@ -3329,7 +3343,7 @@ function RoastCalc(){
               filteredLog.map(function(entry){
                 return (
                   <LogEntryCard key={entry.id} entry={entry}
-                    onDelete={deleteEntry}
+                    onDelete={function(){ deleteEntry(entry.id); }}
                     onStatusChange={function(s){ updateStatus(entry.id,s); }}
                     onNoteChange={updateEntry}
                   />
