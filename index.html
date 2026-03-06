@@ -3132,22 +3132,13 @@ function RoastCalc(){
       });
     });
 
-    // Live listener for activeSession (for Jacky's live view AND track sync)
+    // Live listener for activeSession — ONLY for Jacky's live view.
+    // We do NOT sync tracks from this listener. Tracks are loaded once on mount
+    // via .get() above, and only written by Ben's own interactions.
+    // This prevents the resurrection loop where onSnapshot keeps restoring cleared sessions.
     var sesUnsub = db.collection("untamed-roastery").doc("activeSession").onSnapshot(function(snap){
       if(snap.exists && snap.data() && snap.data().value){
-        var sessData = snap.data().value;
-        setLiveSession(sessData);
-        // Also sync tracks/session state so Jacky sees the full session
-        if(sessData.tracks && sessData.tracks.length > 0){
-          setTracks(function(current){
-            // Only update if current is null/empty (don't overwrite Ben's live edits)
-            if(!current || current.length === 0) return sessData.tracks;
-            return current;
-          });
-          if(sessData.sessionName) setSessionName(function(cur){ return cur || sessData.sessionName; });
-          if(sessData.globalTimer) setGlobalTimer(function(cur){ return cur || sessData.globalTimer; });
-          if(typeof sessData.sessionRunning==="boolean") setSessionRunning(function(cur){ return cur || sessData.sessionRunning; });
-        }
+        setLiveSession(snap.data().value);
       } else {
         setLiveSession(null);
       }
@@ -3177,16 +3168,21 @@ function RoastCalc(){
   useEffect(function(){ if(!storageReady)return; fbSetIfModified("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
   useEffect(function(){ if(!storageReady)return; fbSetIfModified("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
-  // ── Save active session to Firebase whenever tracks change (after initial load) ──
+  // sessionModified: true only after user has actually interacted with the session
+  // (started timer, changed track data, etc.) — prevents writing back on initial load.
+  var sessionModified = React.useRef(false);
+
+  // ── Save active session to Firebase whenever tracks change (only after user modifies) ──
   useEffect(function(){
     if(!loaded) return;
-    // If tracks is null/empty, explicitly clear activeSession in Firestore so
-    // it doesn't resurrect on next refresh.
+    // Clear: always delete from Firestore (user explicitly ended session)
     if(!tracks || tracks.length===0){
       lastWriteAt.current["activeSession"] = Date.now();
       if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){});
       return;
     }
+    // Don't write back on initial load — only after user has actually changed something
+    if(!sessionModified.current) return;
     var hasReal = tracks.some(function(t){ return t.gramsInput && t.machineId; });
     var sessionData = {
       tracks:tracks, sessionName:sessionName,
@@ -3317,13 +3313,13 @@ function RoastCalc(){
                 inventory={inventory}
                 onSaveSession={saveSession}
                 persistedTracks={tracks}
-                onTracksChange={setTracks}
+                onTracksChange={function(v){ sessionModified.current=true; setTracks(v); }}
                 sessionName={sessionName}
-                onSessionNameChange={setSessionName}
+                onSessionNameChange={function(v){ sessionModified.current=true; setSessionName(v); }}
                 globalTimer={globalTimer}
-                onTimerChange={setGlobalTimer}
+                onTimerChange={function(v){ sessionModified.current=true; setGlobalTimer(v); }}
                 sessionRunning={sessionRunning}
-                onSessionRunningChange={setSessionRunning}
+                onSessionRunningChange={function(v){ sessionModified.current=true; setSessionRunning(v); }}
                 savedTrackIds={savedTrackIds}
                 onSavedTrackIdsChange={setSavedTrackIds}
               />
