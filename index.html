@@ -1221,7 +1221,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
                 <div style={{display:"flex",flexWrap:"wrap",gap:18,alignItems:"flex-start"}}>
 
                   <div style={{flex:"1 1 auto",minWidth:120}}>
-                    <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1.1}}>{e.beanOrigin||e.client||"—"}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1.1}}>{e.client||e.beanOrigin||"—"}</div>
                     <div style={{fontSize:12,color:C.tan,marginTop:3}}>{e.level} · {e.format} · {e.machines}</div>
                     <div style={{fontSize:11,color:"#a87c6a",marginTop:2}}>{fmtDateFull(entry.id)}{e.trackStartTime?" · started "+e.trackStartTime:""}</div>
                   </div>
@@ -2226,7 +2226,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     });
     return {
       id:Date.now()+Math.random(),
-      client:t.startTime?t.startTime:(sessionName||"Multi-track Session"),
+      client:sessionName||t.startTime||"Multi-track Session",
       grams:t.grams,roastLevel:t.roastLevel,level:lv.label,
       machines:m?"1× "+m.model:"Unknown",
       rounds,completedRounds:doneCount,
@@ -3084,6 +3084,7 @@ function RoastCalc(){
   var snS=useState(""); var sessionName=snS[0]; var setSessionName=snS[1];
   var gtS=useState(0); var globalTimer=gtS[0]; var setGlobalTimer=gtS[1];
   var grS=useState(false); var sessionRunning=grS[0]; var setSessionRunning=grS[1];
+  var srkS=useState(0); var sessionResetKey=srkS[0]; var setSessionResetKey=srkS[1];
 
   // ── Firebase: load everything once on mount ──
   useEffect(function(){
@@ -3240,7 +3241,7 @@ function RoastCalc(){
               <span style={{fontSize:10,fontWeight:800,color:"#052e16",letterSpacing:1}}>LIVE SESSION</span>
             </div>
             <span>Active — everyone can see the roast in real-time</span>
-            <button onClick={function(){ fbSet("activeSession",null); setTracks(null); }}
+            <button onClick={function(){ fbSet("activeSession",null); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setSessionResetKey(function(k){ return k+1; }); }}
               style={{marginLeft:"auto",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 10px",cursor:"pointer",color:C.cream,fontFamily:"Georgia,serif",fontSize:10}}>
               End Live
             </button>
@@ -3279,6 +3280,7 @@ function RoastCalc(){
 
             {calcMode==="multi"&&(
               <MultiTrackSession
+                key={sessionResetKey}
                 inventory={inventory}
                 onSaveSession={saveSession}
                 persistedTracks={tracks}
