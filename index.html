@@ -3157,22 +3157,36 @@ function RoastCalc(){
     return function(){ unsubs.forEach(function(u){ u(); }); };
   },[]);
 
+  // userModified tracks which keys the user has actually changed since load.
+  // We only write to Firestore when the user modifies data — not on initial load echo.
+  var userModified = React.useRef({});
+
   function fbSet(key,value){
     if(!window.__db)return;
     lastWriteAt.current[key] = Date.now();
     window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){});
   }
-  useEffect(function(){ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("costs",costs); },[costs,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
+  function fbSetIfModified(key,value){
+    if(!userModified.current[key]) return; // skip — not user-modified yet
+    fbSet(key,value);
+  }
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("log",log); },[log,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("schedule",schedule); },[schedule,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("inventory",inventory); },[inventory,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("costs",costs); },[costs,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSetIfModified("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
   // ── Save active session to Firebase whenever tracks change (after initial load) ──
   useEffect(function(){
     if(!loaded) return;
-    if(!tracks || tracks.length===0){ return; }
+    // If tracks is null/empty, explicitly clear activeSession in Firestore so
+    // it doesn't resurrect on next refresh.
+    if(!tracks || tracks.length===0){
+      lastWriteAt.current["activeSession"] = Date.now();
+      if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){});
+      return;
+    }
     var hasReal = tracks.some(function(t){ return t.gramsInput && t.machineId; });
     var sessionData = {
       tracks:tracks, sessionName:sessionName,
@@ -3196,10 +3210,10 @@ function RoastCalc(){
   var lsS=useState(""); var logSearch=lsS[0]; var setLogSearch=lsS[1];
   var lsfS=useState("all"); var logStatusFilter=lsfS[0]; var setLogStatusFilter=lsfS[1];
 
-  function saveSession(entries){ setLog(function(p){ return [].concat(entries,p); }); }
-  function deleteEntry(id){ setLog(function(p){ return p.filter(function(e){ return e.id!==id; }); }); }
-  function updateEntry(updated){ setLog(function(p){ return p.map(function(e){ return e.id===updated.id?updated:e; }); }); }
-  function updateStatus(id,status){ setLog(function(p){ return p.map(function(e){ return e.id===id?Object.assign({},e,{status:status}):e; }); }); }
+  function saveSession(entries){ userModified.current["log"]=true; setLog(function(p){ return [].concat(entries,p); }); }
+  function deleteEntry(id){ userModified.current["log"]=true; setLog(function(p){ return p.filter(function(e){ return e.id!==id; }); }); }
+  function updateEntry(updated){ userModified.current["log"]=true; setLog(function(p){ return p.map(function(e){ return e.id===updated.id?updated:e; }); }); }
+  function updateStatus(id,status){ userModified.current["log"]=true; setLog(function(p){ return p.map(function(e){ return e.id===id?Object.assign({},e,{status:status}):e; }); }); }
   function toggleRoundSingle(i){ setRoundStates(function(p){ var n=Object.assign({},p); if(n[i]) delete n[i]; else n[i]=true; return n; }); }
   function setNote(i,v){ setRoundNotes(function(p){ var n=Object.assign({},p); n[i]=v; return n; }); }
 
@@ -3361,11 +3375,11 @@ function RoastCalc(){
         )}
 
         {activeTab==="calendar"&&(
-          <CalendarTab log={log} schedule={schedule} onScheduleChange={setSchedule}/>
+          <CalendarTab log={log} schedule={schedule} onScheduleChange={function(v){ userModified.current["schedule"]=true; setSchedule(v); }}/>
         )}
 
         {activeTab==="inventory"&&(
-          <InventoryTab inventory={inventory} setInventory={setInventory} log={log} beanCatalog={beanCatalog} setBeanCatalog={setBeanCatalog} packagingInv={packagingInv} setPackagingInv={setPackagingInv}/>
+          <InventoryTab inventory={inventory} setInventory={function(v){ userModified.current["inventory"]=true; setInventory(v); }} log={log} beanCatalog={beanCatalog} setBeanCatalog={function(v){ userModified.current["beanCatalog"]=true; setBeanCatalog(v); }} packagingInv={packagingInv} setPackagingInv={function(v){ userModified.current["packagingInv"]=true; setPackagingInv(v); }}/>
         )}
 
         {activeTab==="finance"&&(
