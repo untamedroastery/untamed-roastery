@@ -3136,8 +3136,9 @@ function RoastCalc(){
   },[]);
 
   function fbSet(key,value){
-    if(!window.__db)return;
-    window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){});
+    if(!window.__db){ console.error("fbSet: no db"); return; }
+    console.log("fbSet writing:", key, Array.isArray(value)?value.length+" items":typeof value);
+    window.__db.collection("untamed-roastery").doc(key).set({value:value}).then(function(){ console.log("fbSet OK:", key); }).catch(function(e){ console.error("fbSet FAILED:", key, e); });
   }
   useEffect(function(){ if(storageReady) fbSet("log",log); },[log,storageReady]);
   useEffect(function(){ if(storageReady) fbSet("schedule",schedule); },[schedule,storageReady]);
@@ -3146,21 +3147,13 @@ function RoastCalc(){
   useEffect(function(){ if(storageReady) fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
   useEffect(function(){ if(storageReady) fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
-  // sessionModified: true only after user has actually interacted with the session
-  // (started timer, changed track data, etc.) — prevents writing back on initial load.
-  var sessionModified = React.useRef(false);
-
-  // ── Save active session to Firebase whenever tracks change (only after user modifies) ──
+  // ── Save active session to Firebase whenever session state changes ──
   useEffect(function(){
     if(!loaded) return;
-    // Clear: always delete from Firestore (user explicitly ended session)
     if(!tracks || tracks.length===0){
-      lastWriteAt.current["activeSession"] = Date.now();
-      if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){});
+      if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(e){ console.error("delete activeSession failed:", e); });
       return;
     }
-    // Don't write back on initial load — only after user has actually changed something
-    if(!sessionModified.current) return;
     var hasReal = tracks.some(function(t){ return t.gramsInput && t.machineId; });
     var sessionData = {
       tracks:tracks, sessionName:sessionName,
@@ -3294,13 +3287,13 @@ function RoastCalc(){
                 inventory={inventory}
                 onSaveSession={saveSession}
                 persistedTracks={tracks}
-                onTracksChange={function(v){ sessionModified.current=true; setTracks(v); }}
+                onTracksChange={setTracks}
                 sessionName={sessionName}
-                onSessionNameChange={function(v){ sessionModified.current=true; setSessionName(v); }}
+                onSessionNameChange={setSessionName}
                 globalTimer={globalTimer}
-                onTimerChange={function(v){ sessionModified.current=true; setGlobalTimer(v); }}
+                onTimerChange={setGlobalTimer}
                 sessionRunning={sessionRunning}
-                onSessionRunningChange={function(v){ sessionModified.current=true; setSessionRunning(v); }}
+                onSessionRunningChange={setSessionRunning}
                 savedTrackIds={savedTrackIds}
                 onSavedTrackIdsChange={setSavedTrackIds}
               />
