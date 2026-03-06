@@ -990,6 +990,12 @@ function SingleOrderCalc({ order, setOrderField, inventory, roundStates, roundNo
               })}
             </div>
           </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+            <span style={{fontSize:11,color:C.mocha}}>Margin %</span>
+            <input type="number" value={order.marginPct!=null?order.marginPct:channelMargin(order.channel||"retail")} onChange={function(e){ setOrderField("marginPct",parseFloat(e.target.value)||0); }}
+              style={{width:64,border:"1.5px solid "+C.red,borderRadius:7,padding:"4px 8px",fontFamily:"Georgia,serif",fontSize:13,fontWeight:700,color:C.red,background:"rgba(255,255,255,0.9)",textAlign:"center",outline:"none"}}/>
+            <span style={{fontSize:11,color:C.mocha}}>%</span>
+          </div>
         </div>
 
         <div style={{marginBottom:12}}>
