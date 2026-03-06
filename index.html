@@ -1221,7 +1221,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
                 <div style={{display:"flex",flexWrap:"wrap",gap:18,alignItems:"flex-start"}}>
 
                   <div style={{flex:"1 1 auto",minWidth:120}}>
-                    <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1.1}}>{e.beanOrigin||e.client||"—"}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:C.cream,fontFamily:"Georgia,serif",lineHeight:1.1}}>{e.client||e.beanOrigin||"—"}</div>
                     <div style={{fontSize:12,color:C.tan,marginTop:3}}>{e.level} · {e.format} · {e.machines}</div>
                     <div style={{fontSize:11,color:"#a87c6a",marginTop:2}}>{fmtDateFull(entry.id)}{e.trackStartTime?" · started "+e.trackStartTime:""}</div>
                   </div>
@@ -2228,7 +2228,7 @@ function MultiTrackSession({ inventory, onSaveSession, persistedTracks, onTracks
     });
     return {
       id:Date.now()+Math.random(),
-      client:t.startTime?t.startTime:(sessionName||"Multi-track Session"),
+      client:sessionName||t.startTime||"Multi-track Session",
       grams:t.grams,roastLevel:t.roastLevel,level:lv.label,
       machines:m?"1× "+m.model:"Unknown",
       rounds,completedRounds:doneCount,
@@ -3135,25 +3135,16 @@ function RoastCalc(){
     return function(){ sesUnsub(); };
   },[]);
 
-  // userModified tracks which keys the user has actually changed since load.
-  // We only write to Firestore when the user modifies data — not on initial load echo.
-  var userModified = React.useRef({});
-
   function fbSet(key,value){
     if(!window.__db)return;
-    lastWriteAt.current[key] = Date.now();
     window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){});
   }
-  function fbSetIfModified(key,value){
-    if(!userModified.current[key]) return; // skip — not user-modified yet
-    fbSet(key,value);
-  }
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("log",log); },[log,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("schedule",schedule); },[schedule,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("inventory",inventory); },[inventory,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("costs",costs); },[costs,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
-  useEffect(function(){ if(!storageReady)return; fbSetIfModified("packagingInv",packagingInv); },[packagingInv,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("log",log); },[log,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("schedule",schedule); },[schedule,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("inventory",inventory); },[inventory,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("costs",costs); },[costs,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
+  useEffect(function(){ if(storageReady) fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
   // sessionModified: true only after user has actually interacted with the session
   // (started timer, changed track data, etc.) — prevents writing back on initial load.
@@ -3193,10 +3184,10 @@ function RoastCalc(){
   var lsS=useState(""); var logSearch=lsS[0]; var setLogSearch=lsS[1];
   var lsfS=useState("all"); var logStatusFilter=lsfS[0]; var setLogStatusFilter=lsfS[1];
 
-  function saveSession(entries){ userModified.current["log"]=true; setLog(function(p){ return [].concat(entries,p); }); }
-  function deleteEntry(id){ userModified.current["log"]=true; setLog(function(p){ return p.filter(function(e){ return e.id!==id; }); }); }
-  function updateEntry(updated){ userModified.current["log"]=true; setLog(function(p){ return p.map(function(e){ return e.id===updated.id?updated:e; }); }); }
-  function updateStatus(id,status){ userModified.current["log"]=true; setLog(function(p){ return p.map(function(e){ return e.id===id?Object.assign({},e,{status:status}):e; }); }); }
+  function saveSession(entries){ setLog(function(p){ return [].concat(entries,p); }); }
+  function deleteEntry(id){ setLog(function(p){ return p.filter(function(e){ return e.id!==id; }); }); }
+  function updateEntry(updated){ setLog(function(p){ return p.map(function(e){ return e.id===updated.id?updated:e; }); }); }
+  function updateStatus(id,status){ setLog(function(p){ return p.map(function(e){ return e.id===id?Object.assign({},e,{status:status}):e; }); }); }
   function toggleRoundSingle(i){ setRoundStates(function(p){ var n=Object.assign({},p); if(n[i]) delete n[i]; else n[i]=true; return n; }); }
   function setNote(i,v){ setRoundNotes(function(p){ var n=Object.assign({},p); n[i]=v; return n; }); }
 
@@ -3361,11 +3352,11 @@ function RoastCalc(){
         )}
 
         {activeTab==="calendar"&&(
-          <CalendarTab log={log} schedule={schedule} onScheduleChange={function(v){ userModified.current["schedule"]=true; setSchedule(v); }}/>
+          <CalendarTab log={log} schedule={schedule} onScheduleChange={function(v){ setSchedule(v); }}/>
         )}
 
         {activeTab==="inventory"&&(
-          <InventoryTab inventory={inventory} setInventory={function(v){ userModified.current["inventory"]=true; setInventory(v); }} log={log} beanCatalog={beanCatalog} setBeanCatalog={function(v){ userModified.current["beanCatalog"]=true; setBeanCatalog(v); }} packagingInv={packagingInv} setPackagingInv={function(v){ userModified.current["packagingInv"]=true; setPackagingInv(v); }}/>
+          <InventoryTab inventory={inventory} setInventory={function(v){ setInventory(v); }} log={log} beanCatalog={beanCatalog} setBeanCatalog={function(v){ setBeanCatalog(v); }} packagingInv={packagingInv} setPackagingInv={function(v){ setPackagingInv(v); }}/>
         )}
 
         {activeTab==="finance"&&(
