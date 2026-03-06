@@ -1398,7 +1398,7 @@ function LogEntryCard({ entry, onDelete, onStatusChange, onNoteChange }){
             {confirmDelete
               ? <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{fontSize:12,color:"#dc2626"}}>Delete this order?</span>
-                  <button onClick={onDelete} style={{background:"#dc2626",border:"none",borderRadius:8,padding:"6px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"Georgia,serif"}}>Yes, delete</button>
+                  <button onClick={function(){ onDelete(entry.id); }} style={{background:"#dc2626",border:"none",borderRadius:8,padding:"6px 16px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"Georgia,serif"}}>Yes, delete</button>
                   <button onClick={function(){ setConfirmDelete(false); }} style={{background:C.tan,border:"none",borderRadius:8,padding:"6px 16px",color:C.espresso,cursor:"pointer",fontSize:12,fontFamily:"Georgia,serif"}}>Cancel</button>
                 </div>
               : <button onClick={function(){ setConfirmDelete(true); }} style={{background:"transparent",border:"1px solid #fca5a5",borderRadius:8,padding:"6px 16px",color:"#dc2626",cursor:"pointer",fontSize:12,fontFamily:"Georgia,serif"}}>🗑 Delete</button>
