@@ -3091,6 +3091,7 @@ function RoastCalc(){
   // Track timestamp of our most recent write per key.
   // onSnapshot listeners ignore snapshots arriving within 3s of our own write (echo suppression).
   var lastWriteAt = React.useRef({});
+  var sessionCleared = React.useRef(false); // set true when user ends session; prevents onSnapshot from restoring it
 
   // ── Firebase: load everything once on mount ──
   useEffect(function(){
@@ -3121,46 +3122,55 @@ function RoastCalc(){
       })
       .catch(function(){ setStorageReady(true); setLoaded(true); });
 
-    // Only activeSession needs a live listener (for Jacky's real-time viewer).
-    // All other data (log, inventory, etc.) is loaded once via .get() above and
-    // written via fbSet on user action. No live listeners = no echo loops.
-    var sesUnsub = db.collection("untamed-roastery").doc("activeSession").onSnapshot(function(snap){
-      if(snap.exists && snap.data() && snap.data().value){
-        setLiveSession(snap.data().value);
-      } else {
-        setLiveSession(null);
-      }
+    // Live listeners for standard data — original working pattern
+    var unsubs = pairs.map(function(p){
+      return db.collection("untamed-roastery").doc(p[0]).onSnapshot(function(snap){
+        if(snap.exists && snap.data() && snap.data().value!=null) p[1](snap.data().value);
+      });
     });
 
-    return function(){ sesUnsub(); };
+    // Live listener for activeSession — Jacky live view + track sync
+    var sesUnsub = db.collection("untamed-roastery").doc("activeSession").onSnapshot(function(snap){
+      if(snap.exists && snap.data() && snap.data().value){
+        var sessData = snap.data().value;
+        setLiveSession(sessData);
+        // Don't restore tracks if user just cleared the session
+        if(!sessionCleared.current && sessData.tracks && sessData.tracks.length > 0){
+          setTracks(function(current){
+            if(!current || current.length === 0) return sessData.tracks;
+            return current;
+          });
+          if(sessData.sessionName) setSessionName(function(cur){ return cur || sessData.sessionName; });
+          if(sessData.globalTimer) setGlobalTimer(function(cur){ return cur || sessData.globalTimer; });
+          if(typeof sessData.sessionRunning==="boolean") setSessionRunning(function(cur){ return cur || sessData.sessionRunning; });
+        }
+      } else {
+        setLiveSession(null);
+        sessionCleared.current = false; // Firestore confirmed deletion — safe to re-enable
+      }
+    });
+    unsubs.push(sesUnsub);
+
+    return function(){ unsubs.forEach(function(u){ u(); }); };
   },[]);
 
-  function fbSet(key,value){
-    if(!window.__db){ console.error("fbSet: no db"); return; }
-    console.log("fbSet writing:", key, Array.isArray(value)?value.length+" items":typeof value);
-    window.__db.collection("untamed-roastery").doc(key).set({value:value}).then(function(){ console.log("fbSet OK:", key); }).catch(function(e){ console.error("fbSet FAILED:", key, e); });
-  }
-  useEffect(function(){ if(storageReady) fbSet("log",log); },[log,storageReady]);
-  useEffect(function(){ if(storageReady) fbSet("schedule",schedule); },[schedule,storageReady]);
-  useEffect(function(){ if(storageReady) fbSet("inventory",inventory); },[inventory,storageReady]);
-  useEffect(function(){ if(storageReady) fbSet("costs",costs); },[costs,storageReady]);
-  useEffect(function(){ if(storageReady) fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
-  useEffect(function(){ if(storageReady) fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
+  function fbSet(key,value){ if(!window.__db)return; window.__db.collection("untamed-roastery").doc(key).set({value:value}).catch(function(){}); }
+  useEffect(function(){ if(!storageReady)return; fbSet("log",log); },[log,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("schedule",schedule); },[schedule,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("inventory",inventory); },[inventory,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("costs",costs); },[costs,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("beanCatalog",beanCatalog); },[beanCatalog,storageReady]);
+  useEffect(function(){ if(!storageReady)return; fbSet("packagingInv",packagingInv); },[packagingInv,storageReady]);
 
   // ── Save active session to Firebase whenever session state changes ──
   useEffect(function(){
     if(!loaded) return;
     if(!tracks || tracks.length===0){
-      if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(e){ console.error("delete activeSession failed:", e); });
+      if(window.__db) window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){});
       return;
     }
     var hasReal = tracks.some(function(t){ return t.gramsInput && t.machineId; });
-    var sessionData = {
-      tracks:tracks, sessionName:sessionName,
-      globalTimer:globalTimer, sessionRunning:sessionRunning,
-      updatedAt:Date.now(), active:hasReal
-    };
-    fbSet("activeSession", sessionData);
+    fbSet("activeSession", {tracks:tracks,sessionName:sessionName,globalTimer:globalTimer,sessionRunning:sessionRunning,updatedAt:Date.now(),active:hasReal});
   },[tracks,sessionName,globalTimer,sessionRunning,loaded]);
 
 
@@ -3236,7 +3246,7 @@ function RoastCalc(){
               <span style={{fontSize:10,fontWeight:800,color:"#052e16",letterSpacing:1}}>LIVE SESSION</span>
             </div>
             <span>Active — everyone can see the roast in real-time</span>
-            <button onClick={function(){ window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){}); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setLiveSession(null); setSessionResetKey(function(k){ return k+1; }); }}
+            <button onClick={function(){ sessionCleared.current=true; window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){}); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setLiveSession(null); setSessionResetKey(function(k){ return k+1; }); }}
               style={{marginLeft:"auto",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 10px",cursor:"pointer",color:C.cream,fontFamily:"Georgia,serif",fontSize:10}}>
               End Live
             </button>
@@ -3247,7 +3257,7 @@ function RoastCalc(){
           <div>
             {(tracks&&tracks.length>0)&&(
               <div style={{marginBottom:12,display:"flex",justifyContent:"flex-end"}}>
-                <button onClick={function(){ window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){}); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setLiveSession(null); setSessionResetKey(function(k){ return k+1; }); }}
+                <button onClick={function(){ sessionCleared.current=true; window.__db.collection("untamed-roastery").doc("activeSession").delete().catch(function(){}); setTracks(null); setSessionName(""); setGlobalTimer(0); setSessionRunning(false); setSavedTrackIds([]); setLiveSession(null); setSessionResetKey(function(k){ return k+1; }); }}
                   style={{padding:"6px 14px",borderRadius:8,border:"1px solid #fca5a5",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,background:"#fff5f5",color:"#dc2626"}}>
                   ✕ Clear Session
                 </button>
